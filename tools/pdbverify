@@ -59,8 +59,7 @@ check "tools intent target" "$(grep -c 'app.template.extension.pdb.PdbExtrasActi
 check "stale fragment reference" "$(grep -c 'PdbExtrasFragment' "$PREFS")" "0"
 check "tools category + row" "$(grep -c 'Pdb Extras tools\|Extras tools' "$PREFS")" "2"
 MORPHE_KEYS=(morphe_force_premium morphe_no_ads morphe_privacy_receipts morphe_privacy_see_more
-  morphe_remember_auth morphe_show_full_error morphe_im_connect_toast morphe_auto_coin
-  morphe_force_english morphe_new_post_component morphe_advanced_logging morphe_global_pause)
+  morphe_remember_auth morphe_force_offer morphe_api_staging morphe_show_full_error morphe_im_connect_toast morphe_force_english morphe_advanced_logging morphe_global_pause)
 _found=0
 for k in "${MORPHE_KEYS[@]}"; do grep -q "=\"$k\"" "$PREFS" && _found=$((_found + 1)); done
 check "morphe_* switch keys" "$_found" "12"

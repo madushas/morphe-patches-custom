@@ -12,39 +12,73 @@ private const val ROOT_PREFS = "res/xml/root_preferences.xml"
 private const val EXT_PREFIX = "Lapp/template/extension/pdb/"
 private const val INIT_PROVIDER = "app.template.extension.pdb.PdbInitProvider"
 
-/** One row in the "Morphe Extras" category. */
-private data class Toggle(
+/** One boolean row in the "Morphe Extras" category. */
+private data class SwitchRow(
     val key: String,
     val title: String,
     val summary: String,
     val default: Boolean,
 )
 
-private val TOGGLES = listOf(
-    Toggle("morphe_force_premium", "Force Pro (all entitlements)",
+/** One free-text row in the "Morphe Extras" category. */
+private data class TextRow(
+    val key: String,
+    val title: String,
+    val summary: String,
+    val dialogTitle: String,
+)
+
+/**
+ * Boolean rows. Each one maps onto a preference Pdb itself reads, applied at startup
+ * by the extension (`PdbStartup`), so the switch and the app setting cannot drift.
+ */
+private val SWITCHES = listOf(
+    SwitchRow("morphe_force_premium", "Force Pro (all entitlements)",
         "Unlocks every Pdb Pro feature and hides paywalls.", true),
-    Toggle("morphe_no_ads", "Block all ads",
+    SwitchRow("morphe_no_ads", "Block all ads",
         "Disables every ad SDK and the in-app ad loader.", true),
-    Toggle("morphe_privacy_receipts", "Disable IRL read receipts",
+    SwitchRow("morphe_privacy_receipts", "Disable IRL read receipts",
         "The other person never sees that you opened their IRL.", true),
-    Toggle("morphe_privacy_see_more", "Ignore IRL \u201csee more\u201d",
+    SwitchRow("morphe_privacy_see_more", "Ignore IRL \u201csee more\u201d",
         "Stop IRL view tracking when you expand a card.", true),
-    Toggle("morphe_remember_auth", "Stay signed in",
+    SwitchRow("morphe_remember_auth", "Stay signed in",
         "Remember the Google sign-in so you are not asked again (Pdb's own switch).", true),
-    Toggle("morphe_show_full_error", "Show full error messages",
+    SwitchRow("morphe_force_offer", "Force offer sheet (dev)",
+        "forceShowOffer \u2014 makes Pdb show its offer/paywall sheet again.", false),
+    SwitchRow("morphe_api_staging", "Use staging backend (dev)",
+        "apiIsStaging \u2014 points the app at Pdb's staging API. Separate accounts/data.", false),
+    SwitchRow("morphe_show_full_error", "Show full error messages",
         "Surface the complete error toast instead of a generic one (debug aid).", false),
-    Toggle("morphe_im_connect_toast", "Stream connect toast",
+    SwitchRow("morphe_im_connect_toast", "Stream connect toast",
         "Toast when the realtime (IM) socket connects (debug aid).", false),
-    Toggle("morphe_auto_coin", "Auto-consume coins",
-        "Automatically use a purchased coin when needed.", true),
-    Toggle("morphe_force_english", "Force English",
+    SwitchRow("morphe_force_english", "Force English",
         "Force the app UI to English regardless of system locale.", false),
-    Toggle("morphe_new_post_component", "New post component",
-        "Use Pdb's redesigned post composer.", false),
-    Toggle("morphe_advanced_logging", "Verbose file logging",
+    SwitchRow("morphe_advanced_logging", "Verbose file logging",
         "Raise the app's file logger to Info level.", false),
-    Toggle("morphe_global_pause", "Pause all Morphe extras",
+    SwitchRow("morphe_global_pause", "Pause all Morphe extras",
         "Stop writing any values; leave the app untouched on next launch.", false),
+)
+
+/**
+ * Free-text rows. These drive Pdb preferences that take a value, none of which the
+ * stock UI exposes: an empty value removes the app key again.
+ */
+private val TEXTS = listOf(
+    TextRow("morphe_geo_country", "Feed country override",
+        "mockFeedCountryCode \u2014 for example US, GB, DE. Empty = off.",
+        "Feed country code"),
+    TextRow("morphe_whitelist_host", "Web allow-list host",
+        "whiteListHost \u2014 extra host the in-app browser may load. Empty = off.",
+        "Allow-list host"),
+    TextRow("morphe_bubble_url", "Bubble entry URL",
+        "mockBubbleEntranceURL \u2014 repoints the bubble entry. Empty = off.",
+        "Bubble entry URL"),
+    TextRow("morphe_mock_latlng", "Mock GPS location",
+        "mockLatLng \u2014 lat,lng, for example 51.50,-0.12. Empty = off.",
+        "Mock location"),
+    TextRow("morphe_instant_chat_user", "Force instant-chat partner",
+        "debugInstantChatUserId \u2014 user id to be matched with instantly. Empty = off.",
+        "Instant chat user id"),
 )
 
 private fun Document.el(tag: String, vararg attrs: Pair<String, String>): Element =
@@ -80,17 +114,31 @@ val pdbFeatureMenuResourcePatch = resourcePatch(
             val root = doc.documentElement
 
             val category = doc.el("PreferenceCategory", "app:title" to "Morphe \u2014 Pdb Extras")
-            for (t in TOGGLES) {
+
+            for (s in SWITCHES) {
                 category.appendChild(
                     doc.el(
                         "SwitchPreference",
-                        "android:key" to t.key,
-                        "app:title" to t.title,
-                        "app:summary" to t.summary,
-                        "app:defaultValue" to t.default.toString(),
+                        "android:key" to s.key,
+                        "app:title" to s.title,
+                        "app:summary" to s.summary,
+                        "app:defaultValue" to s.default.toString(),
                     ),
                 )
             }
+
+            for (t in TEXTS) {
+                category.appendChild(
+                    doc.el(
+                        "EditTextPreference",
+                        "android:key" to t.key,
+                        "app:title" to t.title,
+                        "app:summary" to t.summary,
+                        "android:dialogTitle" to t.dialogTitle,
+                    ),
+                )
+            }
+
             root.appendChild(category)
 
             val toolsCategory = doc.el("PreferenceCategory", "app:title" to "Morphe \u2014 Pdb Extras tools")
@@ -98,7 +146,7 @@ val pdbFeatureMenuResourcePatch = resourcePatch(
                 "Preference",
                 "android:key" to "morphe_tools",
                 "app:title" to "Extras tools",
-                "app:summary" to "Export / import settings \u00b7 diagnostics \u00b7 presets",
+                "app:summary" to "Settings \u00b7 any preference \u00b7 chat data \u00b7 identity + socket",
             )
             tools.appendChild(
                 doc.el(

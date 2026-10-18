@@ -5,16 +5,17 @@ import android.content.SharedPreferences;
 import android.util.Log;
 
 /**
- * Applies the "Morphe Extras" switches to Pdb's own preference store.
+ * Applies the "Morphe Extras" rows to Pdb's own preference store.
  *
- * Called as early as possible (from {@link PdbInitProvider}, which Android
+ * <p>Called as early as possible (from {@link PdbInitProvider}, which Android
  * instantiates before {@code Application.onCreate()}, and from a hook in
  * {@code pdb.app.App.attachBaseContext(Context)}), so the values are in place
  * before the app reads them.
  *
- * Every switch writes the mapped app preference to an explicit {@code true} or
- * {@code false}, so turning a switch off actually reverts the app setting instead
- * of silently leaving the previous run's value behind.
+ * <p>Every switch writes the mapped app preference to an explicit {@code true} or
+ * {@code false} and every text row either writes its value or removes the app key,
+ * so turning a row off actually reverts the app setting instead of silently leaving
+ * the previous run's value behind.
  */
 public final class PdbStartup {
 
@@ -47,11 +48,11 @@ public final class PdbStartup {
             boolean receipts = PdbSettings.getBool(sp, PdbSettings.PRIVACY_RECEIPTS, true);
             boolean seeMore  = PdbSettings.getBool(sp, PdbSettings.PRIVACY_SEE_MORE, true);
             boolean remember = PdbSettings.getBool(sp, PdbSettings.REMEMBER_AUTH, true);
+            boolean offer    = PdbSettings.getBool(sp, PdbSettings.FORCE_OFFER, false);
+            boolean staging  = PdbSettings.getBool(sp, PdbSettings.API_STAGING, false);
             boolean fullErr  = PdbSettings.getBool(sp, PdbSettings.SHOW_FULL_ERROR, false);
             boolean imToast  = PdbSettings.getBool(sp, PdbSettings.IM_CONNECT_TOAST, false);
-            boolean coin     = PdbSettings.getBool(sp, PdbSettings.AUTO_COIN, true);
             boolean english  = PdbSettings.getBool(sp, PdbSettings.FORCE_ENGLISH, false);
-            boolean newPost  = PdbSettings.getBool(sp, PdbSettings.NEW_POST, false);
             boolean verbose  = PdbSettings.getBool(sp, PdbSettings.ADVANCED_LOGGING, false);
 
             // Premium + ads: drive the app's own developer backdoor / ad kill-switch.
@@ -67,10 +68,10 @@ public final class PdbStartup {
             e.putBoolean(PdbSettings.PDB_SHOW_ERROR, fullErr);
             e.putBoolean(PdbSettings.PDB_IM_TOAST, imToast);
 
-            // Quality of life.
-            e.putBoolean(PdbSettings.PDB_AUTO_COIN, coin);
+            // Hidden dev switches the stock UI never exposes.
+            e.putBoolean(PdbSettings.PDB_FORCE_OFFER, offer);
+            e.putBoolean(PdbSettings.PDB_API_STAGING, staging);
             e.putBoolean(PdbSettings.PDB_FORCE_EN, english);
-            e.putBoolean(PdbSettings.PDB_NEW_POST, newPost);
 
             // Verbose logging: "4" is the app's own "info" level; removing the key
             // restores the app default when the switch is off.
@@ -79,6 +80,13 @@ public final class PdbStartup {
             } else {
                 e.remove(PdbSettings.PDB_LOG_LEVEL);
             }
+
+            // Text overrides: an empty row clears the app key again.
+            String country = applyText(e, sp, PdbSettings.GEO_COUNTRY, PdbSettings.PDB_GEO_COUNTRY);
+            String host    = applyText(e, sp, PdbSettings.WHITELIST_HOST, PdbSettings.PDB_WHITELIST);
+            String bubble  = applyText(e, sp, PdbSettings.BUBBLE_URL, PdbSettings.PDB_BUBBLE_URL);
+            String latLng  = applyText(e, sp, PdbSettings.MOCK_LATLNG, PdbSettings.PDB_MOCK_LATLNG);
+            String instant = applyText(e, sp, PdbSettings.INSTANT_CHAT_USER, PdbSettings.PDB_IM_CHAT_USER);
 
             e.apply();
 
@@ -89,15 +97,47 @@ public final class PdbStartup {
                     + " receipts=" + receipts
                     + " seeMore=" + seeMore
                     + " rememberAuth=" + remember
+                    + " forceOffer=" + offer
+                    + " staging=" + staging
                     + " fullError=" + fullErr
                     + " imToast=" + imToast
-                    + " autoCoin=" + coin
                     + " english=" + english
-                    + " newPost=" + newPost
                     + " verbose=" + verbose
+                    + " country=" + quoted(country)
+                    + " whitelistHost=" + quoted(host)
+                    + " bubbleUrl=" + quoted(bubble)
+                    + " mockLatLng=" + quoted(latLng)
+                    + " instantChatUser=" + quoted(instant)
             );
         } catch (Throwable t) {
             Log.w(TAG, "applyDefaults failed", t);
         }
+    }
+
+    /**
+     * Copies one text row onto the app's own key.
+     *
+     * @return the value that was written, or {@code null} when the row is empty and
+     *     the app key was removed.
+     */
+    private static String applyText(
+        SharedPreferences.Editor e,
+        SharedPreferences sp,
+        String morpheKey,
+        String appKey
+    ) {
+        String value = PdbSettings.getString(sp, morpheKey, "");
+        if (value == null) value = "";
+        value = value.trim();
+        if (value.isEmpty()) {
+            e.remove(appKey);
+            return null;
+        }
+        e.putString(appKey, value);
+        return value;
+    }
+
+    private static String quoted(String value) {
+        return value == null ? "-" : "'" + value + "'";
     }
 }
