@@ -115,18 +115,16 @@ opens. So the menu is built from the two row types that do work:
   `AlertDialog.Builder#setItems` list is *also* inert here: the app's
   `alertDialogTheme` layout has no list panel, so only the title and message draw.)
 
-### Opening the Extras menu
-
-The Tweaks screen is Pdb's own hidden developer menu; the patch appends the
-Morphe section to its bottom.
+### Opening the Extras screen
 
 1. Sign in (email-verification flow — see below).
 2. Open **Settings** (gear icon on the profile screen).
-3. Scroll to the bottom and **tap the version row 4 times quickly** — this opens
-   the hidden **Tweaks** screen (Pdb's own gesture, `tvVersion` in
-   `AppSettingActivity` → route `/tweak/setting`).
-4. Scroll to the bottom: **Morphe — Pdb Extras** (switches + text fields) and
-   **Morphe — Pdb Extras tools** → *Extras tools* (the power-user screen).
+3. The **“Pdb Extras — settings, tools & unlocks”** row is at the **very top** of the
+   list. Tap it: that is the whole extras screen (toggles, text overrides, tools,
+   identity controls).
+4. The bottom of that screen has **“Open native dev screen (Tweaks)”** — a plain
+   button into Pdb's own hidden developer menu, which the stock app only reaches by
+   tapping the version row 4 times (that gesture still works too).
 
 ### Always-on unlocks (no switch)
 
@@ -138,6 +136,36 @@ writes, so there is nothing to toggle and nothing to forget:
 |---|---|
 | All Pro entitlements | `zdf.V()` + the `ProStatus` getters forced `true` at patch time; `mockIsProUser` written on every start |
 | No ads | Ad-SDK init providers disabled in the manifest at patch time; `isADLibDisabled` written on every start |
+
+**What cannot be unlocked client-side.** A few flows stay locked with a server
+*unauthorized* error — notably **changing the preferred personality types**
+(`POST /api/v2/profiles/{id}/type_unlock`) and **region / virtual travel** feeds.
+Those screens pass the client gate (the app really sends the request), but the
+Pdb **server** checks the account's subscription record and answers 401/403. The
+local `ProStatus.subscriptionBackendConfirmed` flag is already forced `true`, yet
+the server only trusts its own billing record. No client patch can change that
+answer; faking the response would only desync (the server-side state never
+changes). The one honest lever is the app's own **free-trial offer** — the
+*Force offer sheet (dev)* toggle makes Pdb show its offer/paywall sheet, and a
+trial that completes through Google Play Billing makes the backend confirm Pro
+for real (`kzd` then sets `subscriptionBackendConfirmed` from the purchase).
+
+### Trackers
+
+The *Disable trackers* patch (default-on) removes third-party telemetry at the
+manifest level:
+
+| Tracker | What happens |
+|---|---|
+| Google Analytics measurement (receiver, service, job service) | `android:enabled="false"` — no usage events or install pings |
+| Yandex AppMetrica (preload provider, services) | disabled — the telemetry service cannot run |
+| Firebase Crashlytics (3 registrars) | removed from the Firebase component registry |
+
+Kept on purpose: `FirebaseInitProvider` and the Firebase messaging receiver, so
+sign-in and push notifications keep working. Remaining first-party telemetry: the
+app's own A/B metrics endpoint (`metrics.personality-database.com/metrics/ab`)
+is called from four obfuscated suspend functions; it is app-owned analytics, not
+a third-party tracker, and is not touched.
 
 ### Switches
 

@@ -14,7 +14,6 @@ export PATH="$HOME/tools/android-sdk/build-tools/35.0.0:$PATH"
 TMP="$(mktemp -d /tmp/opencode/pdbverify.XXXXXX)"
 trap 'rm -rf "$TMP"' EXIT
 MAN="$TMP/manifest.txt"
-PREFS="$TMP/prefs.txt"
 
 fail=0
 ok()   { printf '  \033[32m✔\033[0m %s\n' "$1"; }
@@ -25,7 +24,6 @@ echo "== pdbverify: $APK =="
 echo "size: $(du -h "$APK" | cut -f1)"
 
 aapt2 dump xmltree --file AndroidManifest.xml "$APK" > "$MAN" 2>/dev/null
-aapt2 dump xmltree --file res/xml/root_preferences.xml "$APK" > "$PREFS" 2>/dev/null
 
 echo
 echo "-- manifest --"
@@ -54,22 +52,44 @@ PY
 done
 
 echo
-echo "-- preferences (res/xml/root_preferences.xml) --"
-check "tools intent target" "$(grep -c 'app.template.extension.pdb.PdbExtrasActivity' "$PREFS")" "1"
-check "stale fragment reference" "$(grep -c 'PdbExtrasFragment' "$PREFS")" "0"
-check "tools category + row" "$(grep -c 'Pdb Extras tools\|Extras tools' "$PREFS")" "2"
-MORPHE_KEYS=(morphe_privacy_receipts morphe_privacy_see_more morphe_remember_auth
-  morphe_force_offer morphe_api_staging morphe_show_full_error morphe_im_connect_toast
-  morphe_force_english morphe_advanced_logging morphe_global_pause)
-_found=0
-for k in "${MORPHE_KEYS[@]}"; do grep -q "=\"$k\"" "$PREFS" && _found=$((_found + 1)); done
-check "morphe_* switch keys" "$_found" "10"
-check "always-on unlock keys absent from menu" "$(grep -c 'morphe_force_premium\|morphe_no_ads' "$PREFS")" "0"
-check "tools row key" "$(grep -c '="morphe_tools"' "$PREFS")" "1"
+echo "-- settings entry (res/layout/fragment_app_setting.xml) --"
+SETL="$TMP/settings.txt"
+aapt2 dump xmltree --file res/layout/fragment_app_setting.xml "$APK" > "$SETL" 2>/dev/null
+# @+id/ entries compile to numeric resource ids; resolve the name from the resource table.
+ENTRY_HEX="$(aapt2 dump resources "$APK" 2>/dev/null | grep -m1 "id/morphe_extras_entry" | grep -oE "0x7f0a[0-9a-f]{4}")"
+check "morphe_extras_entry id resource" "$([[ -n "$ENTRY_HEX" ]] && echo 1 || echo 0)" "1"
+check "settings layout references the entry" "$(grep -c "$ENTRY_HEX" "$SETL" 2>/dev/null || echo 0)" "1"
+
+echo
+echo "-- trackers --"
+for t in \
+  com.google.android.gms.measurement.AppMeasurementReceiver \
+  com.google.android.gms.measurement.AppMeasurementService \
+  com.google.android.gms.measurement.AppMeasurementJobService \
+  io.appmetrica.analytics.internal.PreloadInfoContentProvider \
+  io.appmetrica.analytics.internal.AppMetricaService; do
+  if python3 - "$MAN" "$t" <<'PY'
+import re,sys
+lines=open(sys.argv[1],encoding='utf-8',errors='replace').read().splitlines()
+want=sys.argv[2]
+for i,l in enumerate(lines):
+    if 'E: ' in l:
+        blk=[]; j=i
+        while j<len(lines) and (j==i or not lines[j].strip().startswith(('E: ','C: '))):
+            blk.append(lines[j]); j+=1
+        s="\n".join(blk)
+        if want in s and 'enabled(0x0101000e)=false' in s:
+            sys.exit(0)
+sys.exit(1)
+PY
+  then ok "$t disabled"; else bad "$t NOT disabled"; fi
+done
+check "Crashlytics registrars removed" "$(grep -c "crashlytics" "$MAN")" "0"
+check "FirebaseInitProvider kept (auth)" "$(grep -c "FirebaseInitProvider" "$MAN")" "1"
 
 echo
 echo "-- dex (string scan) --"
-for c in PdbStartup PdbInitProvider PdbSettings PdbTools PdbExtrasActivity; do
+for c in PdbStartup PdbInitProvider PdbSettings PdbTools PdbExtrasActivity SettingsEntryHook; do
   n="$(unzip -p "$APK" 'classes*.dex' 2>/dev/null | grep -ac "app/template/extension/pdb/$c" || true)"
   if [[ "${n:-0}" -gt 0 ]]; then ok "$c present"; else bad "$c missing"; fi
 done

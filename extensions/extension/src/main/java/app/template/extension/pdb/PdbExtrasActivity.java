@@ -1,34 +1,40 @@
 package app.template.extension.pdb;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.Switch;
 import android.widget.TextView;
 
 /**
- * Power-user tools screen for the "Extras tools" row injected into Pdb's Tweaks screen.
+ * The "Pdb Extras" power-user screen, opened from the entry row at the top of
+ * Pdb's Settings screen (wired by {@link SettingsEntryHook}).
  *
- * <p>The row is a plain {@code Preference} carrying an {@code <intent>}, because that
- * is the only navigation Pdb's Tweaks host fragment supports: it implements neither
- * {@code OnPreferenceStartScreenCallback} (nested screens) nor
- * {@code OnPreferenceStartFragmentCallback} ({@code android:fragment} rows), and both
- * were confirmed inert on device. An intent-carrying row is handled by
- * {@code Preference.performClick()} in the platform, so no host support is needed.
+ * <p>Built from plain framework widgets: the app's {@code alertDialogTheme} has no
+ * list panel (device-confirmed), and its Tweaks host fragment implements no
+ * preference navigation, so this screen does not depend on either.
  *
- * <p>The screen is built from plain framework widgets rather than an
- * {@code AlertDialog}: the app's {@code alertDialogTheme} layout has no list panel, so
- * {@code AlertDialog.Builder#setItems} renders nothing there (device-confirmed).
- *
- * <p>The switchable rows themselves live in Pdb's own Tweaks list (injected by the
- * patch). Everything here is a one-shot action: settings export/import, an arbitrary
- * preference writer, local chat/profile data read out of Pdb's SQLite files, and the
- * MMKV-backed identity / realtime-socket controls.
+ * <p>Layout, top to bottom:
+ * <ul>
+ *   <li><b>Status</b> — what is forced at patch time (premium, ads) and pause state.</li>
+ *   <li><b>Toggles</b> — the switch rows a user may want to change later (privacy,
+ *       session, dev). Written to the app's own preference file; applied on the next
+ *       launch by {@link PdbStartup}.</li>
+ *   <li><b>Text overrides</b> — the app's hidden value preferences (country, hosts,
+ *       mock GPS, instant-chat partner). Empty saves = off.</li>
+ *   <li><b>Tools</b> — export/import, diagnostics, quick preference writer, local
+ *       chat/profile data, MMKV identity + realtime-socket controls.</li>
+ *   <li><b>Native dev screen</b> — opens Pdb's own Tweaks screen, which the app hides
+ *       behind a 4-tap-on-the-version-row gesture.</li>
+ * </ul>
  */
 public final class PdbExtrasActivity extends Activity {
 
@@ -39,6 +45,29 @@ public final class PdbExtrasActivity extends Activity {
     private EditText chatQuery;
     private EditText deviceId;
     private EditText imUrl;
+
+    /** label → morphe key for the switch rows. */
+    private static final String[][] SWITCH_ROWS = {
+        {"Disable IRL read receipts", PdbSettings.PRIVACY_RECEIPTS},
+        {"Ignore IRL \u201csee more\u201d", PdbSettings.PRIVACY_SEE_MORE},
+        {"Stay signed in", PdbSettings.REMEMBER_AUTH},
+        {"Force offer sheet (dev)", PdbSettings.FORCE_OFFER},
+        {"Use staging backend (dev)", PdbSettings.API_STAGING},
+        {"Show full error messages", PdbSettings.SHOW_FULL_ERROR},
+        {"Stream connect toast", PdbSettings.IM_CONNECT_TOAST},
+        {"Force English", PdbSettings.FORCE_ENGLISH},
+        {"Verbose file logging", PdbSettings.ADVANCED_LOGGING},
+        {"Pause all Morphe extras", PdbSettings.GLOBAL_PAUSE},
+    };
+
+    /** hint → morphe key for the text-override rows. */
+    private static final String[][] TEXT_ROWS = {
+        {"Feed country override, e.g. US (mockFeedCountryCode)", PdbSettings.GEO_COUNTRY},
+        {"Web allow-list host (whiteListHost)", PdbSettings.WHITELIST_HOST},
+        {"Bubble entry URL (mockBubbleEntranceURL)", PdbSettings.BUBBLE_URL},
+        {"Mock GPS location lat,lng (mockLatLng)", PdbSettings.MOCK_LATLNG},
+        {"Force instant-chat user id (debugInstantChatUserId)", PdbSettings.INSTANT_CHAT_USER},
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,7 +80,6 @@ public final class PdbExtrasActivity extends Activity {
         }
         try {
             setContentView(buildScreen());
-            prefill();
         } catch (Throwable t) {
             PdbTools.toast(this, "Morphe Extras: " + t);
             finish();
@@ -78,8 +106,89 @@ public final class PdbExtrasActivity extends Activity {
         status.setPadding(0, pad / 4, 0, pad / 2);
         content.addView(status);
 
-        /* Settings */
-        section("Settings");
+        /* Toggles */
+        section("Toggles (applied on next launch)");
+        for (final String[] row : SWITCH_ROWS) {
+            content.addView(switchRow(row[0], row[1]), new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+
+        /* Text overrides */
+        section("Hidden text overrides (empty = off)");
+        for (final String[] row : TEXT_ROWS) {
+            EditText edit = field(row[0]);
+            edit.setText(PdbSettings.getString(PdbTools.prefs(this), row[1], ""));
+            edit.setTag(row[1]);
+            textFields.add(edit);
+        }
+        button("Save text overrides", new Runnable() {
+            @Override
+            public void run() {
+                java.util.Set<String> written = new java.util.HashSet<>();
+                android.content.SharedPreferences.Editor e = PdbTools.prefs(PdbExtrasActivity.this).edit();
+                for (EditText edit : textFields) {
+                    String key = (String) edit.getTag();
+                    String value = edit.getText().toString().trim();
+                    if (value.isEmpty()) e.remove(key);
+                    else e.putString(key, value);
+                    written.add(key);
+                }
+                e.apply();
+                show("Text overrides", "Saved " + written.size()
+                    + " override(s). Relaunch Pdb to apply.", false);
+            }
+        });
+
+        /* Tools */
+        section("Tools");
+        toolsButtons();
+
+        /* Identity / transport */
+        section("Identity and realtime socket (MMKV)");
+        identityControls();
+
+        /* Result */
+        section("Result");
+        result = new TextView(this);
+        result.setTextSize(12);
+        result.setTextIsSelectable(true);
+        result.setPadding(0, pad / 4, 0, pad / 4);
+        ScrollView resultScroll = new ScrollView(this);
+        resultScroll.addView(result);
+        content.addView(resultScroll, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            Math.round(220 * getResources().getDisplayMetrics().density)));
+
+        /* Native dev screen */
+        section("Pdb's own developer screen");
+        button("Open native dev screen (Tweaks)", new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Intent intent = new Intent();
+                    intent.setClassName(getPackageName(), "pdb.app.tweak.TweaksActivity");
+                    startActivity(intent);
+                } catch (Throwable t) {
+                    show("Tweaks", "Could not open Pdb's Tweaks screen: " + t, false);
+                }
+            }
+        });
+
+        button("Close", new Runnable() {
+            @Override
+            public void run() {
+                finish();
+            }
+        });
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(content);
+        return scroll;
+    }
+
+    private final java.util.List<EditText> textFields = new java.util.ArrayList<>();
+
+    private void toolsButtons() {
         button("Export settings to clipboard (JSON)", new Runnable() {
             @Override
             public void run() {
@@ -116,27 +225,6 @@ public final class PdbExtrasActivity extends Activity {
                 show("Reset", "Morphe values cleared. Relaunch Pdb to apply.", false);
             }
         });
-
-        /* Preferences */
-        section("Any preference (what the app's hidden Quick Tweak does)");
-        prefKey = field("Preference key, for example mockFeedCountryCode");
-        prefValue = field("Value: true / false / number / text");
-        button("Set preference", new Runnable() {
-            @Override
-            public void run() {
-                show("Set pref", PdbTools.setPref(
-                    PdbExtrasActivity.this,
-                    prefKey.getText().toString(),
-                    prefValue.getText().toString()), false);
-            }
-        });
-        button("Delete preference key", new Runnable() {
-            @Override
-            public void run() {
-                show("Delete pref", PdbTools.deletePref(
-                    PdbExtrasActivity.this, prefKey.getText().toString()), false);
-            }
-        });
         button("Dump every preference key", new Runnable() {
             @Override
             public void run() {
@@ -144,7 +232,6 @@ public final class PdbExtrasActivity extends Activity {
             }
         });
 
-        /* Local data */
         section("Local data (read-only)");
         button("Database stats (files, tables, row counts)", new Runnable() {
             @Override
@@ -192,10 +279,12 @@ public final class PdbExtrasActivity extends Activity {
                 });
             }
         });
+    }
 
-        /* Identity / transport */
-        section("Identity and realtime socket (MMKV)");
+    private void identityControls() {
         deviceId = field("XDeviceId value");
+        String id = PdbTools.deviceId();
+        if (!id.startsWith("(")) deviceId.setText(id);
         button("Save device id", new Runnable() {
             @Override
             public void run() {
@@ -211,6 +300,8 @@ public final class PdbExtrasActivity extends Activity {
             }
         });
         imUrl = field("wss://your-relay/connection/websocket");
+        String url = PdbTools.imSocket();
+        if (!url.startsWith("(")) imUrl.setText(url);
         button("Save IM socket URL", new Runnable() {
             @Override
             public void run() {
@@ -245,28 +336,28 @@ public final class PdbExtrasActivity extends Activity {
                 show("MMKV", PdbTools.mmkvDump(), true);
             }
         });
+    }
 
-        /* Result */
-        section("Result");
-        result = new TextView(this);
-        result.setTextSize(12);
-        result.setTextIsSelectable(true);
-        result.setPadding(0, pad / 4, 0, pad / 4);
-        ScrollView resultScroll = new ScrollView(this);
-        resultScroll.addView(result);
-        content.addView(resultScroll, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Math.round(220 * getResources().getDisplayMetrics().density)));
+    /* ── widget helpers ── */
 
-        button("Close", new Runnable() {
+    private View switchRow(String label, final String key) {
+        int pad = Math.round(16 * getResources().getDisplayMetrics().density);
+
+        Switch sw = new Switch(this);
+        sw.setText(label);
+        sw.setTextSize(15);
+        sw.setAllCaps(false);
+        sw.setChecked(PdbSettings.getBool(PdbTools.prefs(this), key, false));
+        sw.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
-            public void run() {
-                finish();
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                PdbTools.prefs(PdbExtrasActivity.this).edit().putBoolean(key, isChecked).apply();
+                PdbTools.toast(PdbExtrasActivity.this,
+                    "Morphe Extras: " + (isChecked ? "on" : "off") + " \u2014 relaunch Pdb to apply");
             }
         });
-
-        ScrollView scroll = new ScrollView(this);
-        scroll.addView(content);
-        return scroll;
+        sw.setPadding(0, pad / 4, 0, pad / 4);
+        return sw;
     }
 
     private void section(String label) {
@@ -307,13 +398,6 @@ public final class PdbExtrasActivity extends Activity {
         content.addView(edit, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return edit;
-    }
-
-    private void prefill() {
-        String id = PdbTools.deviceId();
-        if (id != null && !id.startsWith("(")) deviceId.setText(id);
-        String url = PdbTools.imSocket();
-        if (url != null && !url.startsWith("(")) imUrl.setText(url);
     }
 
     /* ── actions ── */

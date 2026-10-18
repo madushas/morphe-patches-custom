@@ -67,3 +67,17 @@ val TweaksPrefChangedFingerprint = Fingerprint(
     returnType = "V",
     parameters = listOf("Landroid/content/SharedPreferences;", "Ljava/lang/String;"),
 )
+
+/**
+ * The Settings screen fragment (obfuscated class, e.g. `e60`) that hosts
+ * `pdb.app.user.appsetting.AppSettingActivity`'s content.
+ *
+ * Anchored on the ViewBinding debug literal
+ * `getBinding()Lpdb/app/user/databinding/FragmentAppSettingBinding;`, which is stable
+ * across obfuscation and releases. The fragment's `onViewCreated(View, Bundle)` is
+ * then matched by signature — the entry-row hook ([SettingsEntryHook]) is injected
+ * there, so the obfuscated method name is irrelevant.
+ */
+val SettingsFragmentFingerprint = Fingerprint(
+    filters = listOf(string("getBinding()Lpdb/app/user/databinding/FragmentAppSettingBinding;")),
+)

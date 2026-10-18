@@ -75,6 +75,37 @@
       "options": []
     },
     {
+      "name": "Disable trackers",
+      "description": "Disables Google Analytics measurement, Yandex AppMetrica telemetry and removes Firebase Crashlytics at the manifest level.",
+      "default": true,
+      "dependencies": [],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
       "name": "Fix Firebase after re-signing",
       "description": "Fixes Firebase services (push notifications, Remote Config, Firebase Auth) that break after Morphe re-signs the app with a different certificate.\n\nApply with Original app certificate patch — no other config needed.",
       "default": false,
@@ -133,7 +164,7 @@
     },
     {
       "name": "Pdb Extras feature menu",
-      "description": "Adds a “Morphe — Pdb Extras” menu to Pdb's built-in Tweaks screen (Settings → Tweaks) with premium, ad, privacy and power-user switches, plus a tools screen (export / import / diagnostics / presets).",
+      "description": "Adds a Pdb Extras entry to the top of Pdb's Settings screen with toggles, hidden overrides, power tools (preference writer, chat data, identity controls) and a one-tap shortcut to Pdb's native dev screen.",
       "default": true,
       "dependencies": [
         "ResourcePatch"
@@ -166,7 +197,7 @@
     },
     {
       "name": "Pdb Extras — resources",
-      "description": "Injects the Morphe Extras preference menu, the tools entry and the startup provider.",
+      "description": "Adds the Pdb Extras entry to the Settings screen and registers the extension components.",
       "default": true,
       "dependencies": [],
       "compatiblePackages": [
