@@ -19,7 +19,7 @@ can be built and maintained on its own.
 | **Remove ads** | ✅ | Disables the ad SDK init providers (GMS, AppLovin, Vungle, Yandex) and sets the app's own `isADLibDisabled`. |
 | **Allow standalone install (split-less APK)** | ✅ | The upstream base APK declares `requiredSplitTypes`, which blocks a standalone install; this removes it. |
 | **Pdb Extras feature menu** | ✅ | Adds a **“Pdb Extras”** row at the **top of Pdb's Settings screen** → full extras screen: 10 toggles + 5 hidden text overrides, power tools (any-preference writer, chat/visitor data, MMKV identity + IM-socket controls), and a one-tap button to Pdb's native dev screen. Premium and ad removal are patch-time and have no switch. |
-| **Disable trackers** | ✅ | Disables Google Analytics measurement, Yandex AppMetrica telemetry and strips Firebase Crashlytics at the manifest level. Push notifications and sign-in keep working. |
+| **Disable trackers** | ✅ | Disables Google Analytics measurement and Yandex AppMetrica telemetry; turns off Crashlytics/Analytics data collection via their official opt-out flags. Push notifications and sign-in keep working. |
 
 Optional shared patches (disabled by default): *Spoof app signature*,
 *Spoof install source*, *Spoof Widevine / DRM*.

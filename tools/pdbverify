@@ -84,7 +84,13 @@ sys.exit(1)
 PY
   then ok "$t disabled"; else bad "$t NOT disabled"; fi
 done
-check "Crashlytics registrars removed" "$(grep -c "crashlytics" "$MAN")" "0"
+# The app calls FirebaseCrashlytics.getInstance() at startup, so the registrars
+# must stay registered (each name appears twice in the manifest: meta-data name +
+# value). The collection opt-out below is what actually stops the reporting.
+_registrars="$(grep -c "CrashlyticsRegistrar\|CrashlyticsNdkRegistrar" "$MAN" || true)"
+if [[ "${_registrars:-0}" -ge 1 ]]; then ok "Crashlytics registrars kept ($_registrars)"; else bad "Crashlytics registrars missing"; fi
+check "Crashlytics collection opt-out" "$(grep -c "firebase_crashlytics_collection_enabled" "$MAN")" "1"
+check "Analytics collection opt-out" "$(grep -c "analytics_collection_enabled" "$MAN")" "1"
 check "FirebaseInitProvider kept (auth)" "$(grep -c "FirebaseInitProvider" "$MAN")" "1"
 
 echo

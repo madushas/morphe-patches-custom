@@ -2,9 +2,13 @@ package app.template.patches.pdb.trackers
 
 import app.morphe.patcher.patch.resourcePatch
 import app.template.patches.shared.Constants.PDB_COMPATIBILITY
+import org.w3c.dom.Document
 import org.w3c.dom.Element
 
 private const val MANIFEST = "AndroidManifest.xml"
+
+private fun Document.el(tag: String, vararg attrs: Pair<String, String>): Element =
+    createElement(tag).apply { attrs.forEach { (k, v) -> setAttribute(k, v) } }
 
 /** Third-party tracker components that are disabled in the manifest. */
 private val TRACKER_COMPONENTS = listOf(
@@ -19,16 +23,19 @@ private val TRACKER_COMPONENTS = listOf(
 )
 
 /**
- * Crashlytics registers itself through Firebase's component registry via these
- * meta-data entries; removing them stops Crashlytics from ever initialising.
+ * Crashlytics stays *registered* (the app calls `FirebaseCrashlytics.getInstance()`
+ * from its Application.onCreate — removing the registrars crashes startup with
+ * `NullPointerException: FirebaseCrashlytics component is not present`) but its
+ * data collection is switched off through Crashlytics' documented manifest opt-out
+ * below. Same pattern for Firebase Analytics.
  *
  * `FirebaseInitProvider` is intentionally kept — the app needs core Firebase for
  * the email-verification sign-in flow.
  */
-private val CRASHLYTICS_REGISTRARS = listOf(
-    "com.google.firebase.components:com.google.firebase.crashlytics.CrashlyticsRegistrar",
-    "com.google.firebase.components:com.google.firebase.crashlytics.FirebaseCrashlyticsKtxRegistrar",
-    "com.google.firebase.components:com.google.firebase.crashlytics.ndk.CrashlyticsNdkRegistrar",
+private val COLLECTION_OPT_OUTS = listOf(
+    "firebase_crashlytics_collection_enabled",
+    "analytics_collection_enabled",
+    "google_analytics_default_allow_ad_personalization_signals",
 )
 
 /**
@@ -47,14 +54,16 @@ private val CRASHLYTICS_REGISTRARS = listOf(
 @Suppress("unused")
 val pdbDisableTrackersPatch = resourcePatch(
     name = "Disable trackers",
-    description = "Disables Google Analytics measurement, Yandex AppMetrica telemetry and " +
-        "removes Firebase Crashlytics at the manifest level.",
+    description = "Disables Google Analytics measurement and Yandex AppMetrica telemetry, and " +
+        "turns off Crashlytics/Analytics data collection via their official opt-out flags.",
     default = true,
 ) {
     compatibleWith(PDB_COMPATIBILITY)
 
     execute {
         document(MANIFEST).use { doc ->
+            val application = doc.getElementsByTagName("application").item(0) as Element
+
             // Disable every tracker component (the manifest DOM does not expose
             // namespaced attributes via getAttribute; go through .attributes).
             val elements = doc.getElementsByTagName("*")
@@ -67,13 +76,27 @@ val pdbDisableTrackersPatch = resourcePatch(
                 }
             }
 
-            // Unregister Crashlytics from the Firebase component registry.
-            val metaDatas = doc.getElementsByTagName("meta-data")
-            for (i in metaDatas.length - 1 downTo 0) {
-                val el = metaDatas.item(i) as? Element ?: continue
-                val name = el.attributes?.getNamedItem("android:name")?.nodeValue ?: continue
-                if (name in CRASHLYTICS_REGISTRARS) {
-                    el.parentNode?.removeChild(el)
+            // Collection opt-outs (Crashlytics + Analytics keep working as classes,
+            // they just stop collecting/uploading).
+            for (meta in COLLECTION_OPT_OUTS) {
+                val metas = doc.getElementsByTagName("meta-data")
+                var present = false
+                for (i in 0 until metas.length) {
+                    val el = metas.item(i) as? Element ?: continue
+                    if (el.attributes?.getNamedItem("android:name")?.nodeValue == meta) {
+                        el.setAttribute("android:value", "false")
+                        present = true
+                        break
+                    }
+                }
+                if (!present) {
+                    application.appendChild(
+                        doc.el(
+                            "meta-data",
+                            "android:name" to meta,
+                            "android:value" to "false",
+                        ),
+                    )
                 }
             }
         }

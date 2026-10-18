@@ -159,7 +159,7 @@ manifest level:
 |---|---|
 | Google Analytics measurement (receiver, service, job service) | `android:enabled="false"` — no usage events or install pings |
 | Yandex AppMetrica (preload provider, services) | disabled — the telemetry service cannot run |
-| Firebase Crashlytics (3 registrars) | removed from the Firebase component registry |
+| Firebase Crashlytics (3 registrars) | registered (the app calls `getInstance()` at startup — removing them crashes the app), but data collection is switched off via the official `firebase_crashlytics_collection_enabled=false` opt-out |
 
 Kept on purpose: `FirebaseInitProvider` and the Firebase messaging receiver, so
 sign-in and push notifications keep working. Remaining first-party telemetry: the
