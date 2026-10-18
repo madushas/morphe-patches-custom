@@ -1,104 +1,501 @@
 {
-  "morphe_force_premium": {
-    "name": "Force Pro (all entitlements)",
-    "description": "Unlocks every Pdb Pro feature and hides paywalls.",
-    "default": true,
-    "category": "premium"
-  },
-  "morphe_no_ads": {
-    "name": "Block all ads",
-    "description": "Disables every ad SDK and the in-app ad loader.",
-    "default": true,
-    "category": "ads"
-  },
-  "morphe_privacy_receipts": {
-    "name": "Disable IRL read receipts",
-    "description": "The other person never sees that you opened their IRL.",
-    "default": true,
-    "category": "privacy"
-  },
-  "morphe_privacy_see_more": {
-    "name": "Ignore IRL \"see more\"",
-    "description": "Stop IRL view tracking when you expand a card.",
-    "default": true,
-    "category": "privacy"
-  },
-  "morphe_remember_auth": {
-    "name": "Stay signed in",
-    "description": "Remember the Google sign-in so you are not asked again (Pdb's own switch).",
-    "default": true,
-    "category": "session"
-  },
-  "morphe_force_offer": {
-    "name": "Force offer sheet (dev)",
-    "description": "forceShowOffer — makes Pdb show its offer/paywall sheet again.",
-    "default": false,
-    "category": "dev"
-  },
-  "morphe_api_staging": {
-    "name": "Use staging backend (dev)",
-    "description": "apiIsStaging — points the app at Pdb's staging API. Separate accounts/data.",
-    "default": false,
-    "category": "dev"
-  },
-  "morphe_show_full_error": {
-    "name": "Show full error messages",
-    "description": "Surface the complete error toast instead of a generic one (debug aid).",
-    "default": false,
-    "category": "debug"
-  },
-  "morphe_im_connect_toast": {
-    "name": "Stream connect toast",
-    "description": "Toast when the realtime (IM) socket connects (debug aid).",
-    "default": false,
-    "category": "debug"
-  },
-  "morphe_force_english": {
-    "name": "Force English",
-    "description": "Force the app UI to English regardless of system locale.",
-    "default": false,
-    "category": "ui"
-  },
-  "morphe_advanced_logging": {
-    "name": "Verbose file logging",
-    "description": "Raise the app's file logger to Info level.",
-    "default": false,
-    "category": "debug"
-  },
-  "morphe_global_pause": {
-    "name": "Pause all Morphe extras",
-    "description": "Stop writing any values; leave the app untouched on next launch.",
-    "default": false,
-    "category": "control"
-  },
-  "morphe_geo_country": {
-    "name": "Feed country override",
-    "description": "mockFeedCountryCode — for example US, GB, DE. Empty = off.",
-    "default": "",
-    "category": "dev"
-  },
-  "morphe_whitelist_host": {
-    "name": "Web allow-list host",
-    "description": "whiteListHost — extra host the in-app browser may load. Empty = off.",
-    "default": "",
-    "category": "dev"
-  },
-  "morphe_bubble_url": {
-    "name": "Bubble entry URL",
-    "description": "mockBubbleEntranceURL — repoints the bubble entry. Empty = off.",
-    "default": "",
-    "category": "dev"
-  },
-  "morphe_mock_latlng": {
-    "name": "Mock GPS location",
-    "description": "mockLatLng — lat,lng, for example 51.50,-0.12. Empty = off.",
-    "default": "",
-    "category": "dev"
-  },
-  "morphe_instant_chat_user": {
-    "name": "Force instant-chat partner",
-    "description": "debugInstantChatUserId — user id to be matched with instantly. Empty = off.",
-    "default": "",
-    "category": "dev"
-  }
+  "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
+  "version": "0.1.0",
+  "patches": [
+    {
+      "name": "Unlock Pro",
+      "description": "Forces isProUser() true and the ProStatus model to Pro, so every entitlement unlocks and paywalls are hidden.",
+      "default": true,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Bypass PairIP license check",
+      "description": "Replaces com.pairip.application.Application with pdb.app.App, drops LicenseActivity / CHECK_LICENSE and no-ops LicenseClient.",
+      "default": true,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Remove ads",
+      "description": "Disables the ad SDK init providers (GMS, AppLovin, Vungle, Yandex) and sets the app's own isADLibDisabled.",
+      "default": true,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Allow standalone install (split-less APK)",
+      "description": "Removes requiredSplitTypes so the base APK installs standalone instead of failing with split-APK errors.",
+      "default": true,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Pdb Extras feature menu",
+      "description": "Adds a Morphe - Pdb Extras section to Pdb's built-in Tweaks screen: 12 switches plus an Extras tools screen (export / import, diagnostics, presets, preference writer, chat data, MMKV identity controls).",
+      "default": true,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Hide IRL read receipts",
+      "description": "The other person never sees that you opened their IRL. Pdb's own disableIRLMarkRead switch.",
+      "default": true,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Ignore IRL see more",
+      "description": "Stops IRL view tracking when you expand a card. Pdb's own ignoreIRLMore switch.",
+      "default": true,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Stay signed in",
+      "description": "Remember the Google sign-in so you are not asked again. Pdb's own rememberGoogleAuth switch.",
+      "default": true,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Force offer sheet (dev)",
+      "description": "forceShowOffer - makes Pdb show its offer/paywall sheet again.",
+      "default": false,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Use staging backend (dev)",
+      "description": "apiIsStaging - points the app at Pdb's staging API. Separate accounts/data.",
+      "default": false,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Show full error messages",
+      "description": "Surface the complete error toast instead of a generic one (debug aid). Pdb's own showFullError switch.",
+      "default": false,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Stream connect toast",
+      "description": "Toast when the realtime (IM) socket connects (debug aid). Pdb's own imConnectToast switch.",
+      "default": false,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Force English",
+      "description": "Force the app UI to English regardless of system locale. Pdb's own forceEnglish switch.",
+      "default": false,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Verbose file logging",
+      "description": "Raise the app's file logger to Info level. Pdb's own fileLogLevel switch.",
+      "default": false,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Pause all Morphe extras",
+      "description": "Stop writing any values; leave the app untouched on next launch.",
+      "default": false,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.134.6",
+              "versionCodes": {
+                "ARM64_V8A": 2694,
+                "ARMEABI_V7A": 2694,
+                "X86_64": 2694,
+                "X86": 2694
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    }
+  ]
 }
