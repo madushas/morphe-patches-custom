@@ -1,0 +1,104 @@
+{
+  "morphe_force_premium": {
+    "name": "Force Pro (all entitlements)",
+    "description": "Unlocks every Pdb Pro feature and hides paywalls.",
+    "default": true,
+    "category": "premium"
+  },
+  "morphe_no_ads": {
+    "name": "Block all ads",
+    "description": "Disables every ad SDK and the in-app ad loader.",
+    "default": true,
+    "category": "ads"
+  },
+  "morphe_privacy_receipts": {
+    "name": "Disable IRL read receipts",
+    "description": "The other person never sees that you opened their IRL.",
+    "default": true,
+    "category": "privacy"
+  },
+  "morphe_privacy_see_more": {
+    "name": "Ignore IRL \"see more\"",
+    "description": "Stop IRL view tracking when you expand a card.",
+    "default": true,
+    "category": "privacy"
+  },
+  "morphe_remember_auth": {
+    "name": "Stay signed in",
+    "description": "Remember the Google sign-in so you are not asked again (Pdb's own switch).",
+    "default": true,
+    "category": "session"
+  },
+  "morphe_force_offer": {
+    "name": "Force offer sheet (dev)",
+    "description": "forceShowOffer — makes Pdb show its offer/paywall sheet again.",
+    "default": false,
+    "category": "dev"
+  },
+  "morphe_api_staging": {
+    "name": "Use staging backend (dev)",
+    "description": "apiIsStaging — points the app at Pdb's staging API. Separate accounts/data.",
+    "default": false,
+    "category": "dev"
+  },
+  "morphe_show_full_error": {
+    "name": "Show full error messages",
+    "description": "Surface the complete error toast instead of a generic one (debug aid).",
+    "default": false,
+    "category": "debug"
+  },
+  "morphe_im_connect_toast": {
+    "name": "Stream connect toast",
+    "description": "Toast when the realtime (IM) socket connects (debug aid).",
+    "default": false,
+    "category": "debug"
+  },
+  "morphe_force_english": {
+    "name": "Force English",
+    "description": "Force the app UI to English regardless of system locale.",
+    "default": false,
+    "category": "ui"
+  },
+  "morphe_advanced_logging": {
+    "name": "Verbose file logging",
+    "description": "Raise the app's file logger to Info level.",
+    "default": false,
+    "category": "debug"
+  },
+  "morphe_global_pause": {
+    "name": "Pause all Morphe extras",
+    "description": "Stop writing any values; leave the app untouched on next launch.",
+    "default": false,
+    "category": "control"
+  },
+  "morphe_geo_country": {
+    "name": "Feed country override",
+    "description": "mockFeedCountryCode — for example US, GB, DE. Empty = off.",
+    "default": "",
+    "category": "dev"
+  },
+  "morphe_whitelist_host": {
+    "name": "Web allow-list host",
+    "description": "whiteListHost — extra host the in-app browser may load. Empty = off.",
+    "default": "",
+    "category": "dev"
+  },
+  "morphe_bubble_url": {
+    "name": "Bubble entry URL",
+    "description": "mockBubbleEntranceURL — repoints the bubble entry. Empty = off.",
+    "default": "",
+    "category": "dev"
+  },
+  "morphe_mock_latlng": {
+    "name": "Mock GPS location",
+    "description": "mockLatLng — lat,lng, for example 51.50,-0.12. Empty = off.",
+    "default": "",
+    "category": "dev"
+  },
+  "morphe_instant_chat_user": {
+    "name": "Force instant-chat partner",
+    "description": "debugInstantChatUserId — user id to be matched with instantly. Empty = off.",
+    "default": "",
+    "category": "dev"
+  }
+}
