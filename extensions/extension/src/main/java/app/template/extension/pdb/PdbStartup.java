@@ -12,10 +12,11 @@ import android.util.Log;
  * {@code pdb.app.App.attachBaseContext(Context)}), so the values are in place
  * before the app reads them.
  *
- * <p>Every switch writes the mapped app preference to an explicit {@code true} or
- * {@code false} and every text row either writes its value or removes the app key,
- * so turning a row off actually reverts the app setting instead of silently leaving
- * the previous run's value behind.
+ * <p>The patch-time unlocks (premium, ads) are written unconditionally on every
+ * start — they have no switch. Every other switch writes the mapped app preference
+ * to an explicit {@code true} or {@code false} and every text row either writes its
+ * value or removes the app key, so turning a row off actually reverts the app
+ * setting instead of silently leaving the previous run's value behind.
  */
 public final class PdbStartup {
 
@@ -43,8 +44,12 @@ public final class PdbStartup {
 
             SharedPreferences.Editor e = sp.edit();
 
-            boolean pro      = PdbSettings.getBool(sp, PdbSettings.FORCE_PREMIUM, true);
-            boolean noAds    = PdbSettings.getBool(sp, PdbSettings.NO_ADS, true);
+            /* Patch-time always-on unlocks. No switch on purpose: premium and ad
+               removal are baked in by the bytecode patches, and these two writes
+               drive the app's own backdoor prefs so every code path agrees. */
+            e.putBoolean(PdbSettings.PDB_MOCK_PRO, true);
+            e.putBoolean(PdbSettings.PDB_AD_OFF, true);
+
             boolean receipts = PdbSettings.getBool(sp, PdbSettings.PRIVACY_RECEIPTS, true);
             boolean seeMore  = PdbSettings.getBool(sp, PdbSettings.PRIVACY_SEE_MORE, true);
             boolean remember = PdbSettings.getBool(sp, PdbSettings.REMEMBER_AUTH, true);
@@ -54,10 +59,6 @@ public final class PdbStartup {
             boolean imToast  = PdbSettings.getBool(sp, PdbSettings.IM_CONNECT_TOAST, false);
             boolean english  = PdbSettings.getBool(sp, PdbSettings.FORCE_ENGLISH, false);
             boolean verbose  = PdbSettings.getBool(sp, PdbSettings.ADVANCED_LOGGING, false);
-
-            // Premium + ads: drive the app's own developer backdoor / ad kill-switch.
-            e.putBoolean(PdbSettings.PDB_MOCK_PRO, pro);
-            e.putBoolean(PdbSettings.PDB_AD_OFF, noAds);
 
             // Privacy.
             e.putBoolean(PdbSettings.PDB_NO_READ, receipts);
@@ -92,8 +93,7 @@ public final class PdbStartup {
 
             Log.i(
                 TAG,
-                "extras applied: mockPro=" + pro
-                    + " adOff=" + noAds
+                "extras applied: mockPro=true adOff=true"
                     + " receipts=" + receipts
                     + " seeMore=" + seeMore
                     + " rememberAuth=" + remember

@@ -31,12 +31,12 @@ private data class TextRow(
 /**
  * Boolean rows. Each one maps onto a preference Pdb itself reads, applied at startup
  * by the extension (`PdbStartup`), so the switch and the app setting cannot drift.
+ *
+ * Premium and ad removal are NOT here on purpose: they are forced by the bytecode
+ * patches at patch time (`Unlock Pro`, `Remove ads`) and by two unconditional
+ * startup writes, so they stay on with nothing to toggle.
  */
 private val SWITCHES = listOf(
-    SwitchRow("morphe_force_premium", "Force Pro (all entitlements)",
-        "Unlocks every Pdb Pro feature and hides paywalls.", true),
-    SwitchRow("morphe_no_ads", "Block all ads",
-        "Disables every ad SDK and the in-app ad loader.", true),
     SwitchRow("morphe_privacy_receipts", "Disable IRL read receipts",
         "The other person never sees that you opened their IRL.", true),
     SwitchRow("morphe_privacy_see_more", "Ignore IRL \u201csee more\u201d",

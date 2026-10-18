@@ -13,7 +13,7 @@ Verified target: **2.134.6** (versionCode **2694**).
 | **Bypass PairIP license check** | ✅ | Pdb uses the *license-check-only* PairIP variant. Replaces `com.pairip.application.Application` with the real `pdb.app.App`, removes `LicenseActivity` + `CHECK_LICENSE`, and no-ops `LicenseClient`. |
 | **Remove ads** | ✅ | Disables the ad SDK init providers (GMS, AppLovin, Vungle, Yandex) and, via the feature menu, sets the app's own `isADLibDisabled`. |
 | **Allow standalone install (split-less APK)** | ✅ | `pdb_original.apk` is the App Bundle's **base** APK (`requiredSplitTypes="base__abi,base__density"`), which cannot install alone. This removes the split requirement so the single patched APK installs. |
-| **Pdb Extras feature menu** | ✅ | Injects a **“Morphe — Pdb Extras”** section into Pdb's built-in Tweaks screen (Settings → Tweaks) — 12 switches plus an *Extras tools* screen (JSON export / import, diagnostics, presets, reset). |
+| **Pdb Extras feature menu** | ✅ | Injects a **“Morphe — Pdb Extras”** section into Pdb's built-in Tweaks screen (Settings → tap the version row 4×) — 10 switches + 5 text overrides plus an *Extras tools* screen (JSON export / import, diagnostics, presets, any-preference writer, chat data, MMKV identity controls). |
 
 Optional (shown for all apps, disabled by default): **Spoof app signature**,
 **Spoof install source**, **Spoof Widevine / DRM**. Enable if a future build adds
@@ -115,32 +115,62 @@ opens. So the menu is built from the two row types that do work:
   `AlertDialog.Builder#setItems` list is *also* inert here: the app's
   `alertDialogTheme` layout has no list panel, so only the title and message draw.)
 
+### Opening the Extras menu
+
+The Tweaks screen is Pdb's own hidden developer menu; the patch appends the
+Morphe section to its bottom.
+
+1. Sign in (email-verification flow — see below).
+2. Open **Settings** (gear icon on the profile screen).
+3. Scroll to the bottom and **tap the version row 4 times quickly** — this opens
+   the hidden **Tweaks** screen (Pdb's own gesture, `tvVersion` in
+   `AppSettingActivity` → route `/tweak/setting`).
+4. Scroll to the bottom: **Morphe — Pdb Extras** (switches + text fields) and
+   **Morphe — Pdb Extras tools** → *Extras tools* (the power-user screen).
+
+### Always-on unlocks (no switch)
+
+Premium and ad removal are **patch-time, always on** — they are forced by the
+bytecode patches (`Unlock Pro`, `Remove ads`) plus two unconditional startup
+writes, so there is nothing to toggle and nothing to forget:
+
+| Unlock | How |
+|---|---|
+| All Pro entitlements | `zdf.V()` + the `ProStatus` getters forced `true` at patch time; `mockIsProUser` written on every start |
+| No ads | Ad-SDK init providers disabled in the manifest at patch time; `isADLibDisabled` written on every start |
+
 ### Switches
 
 Every switch writes an explicit `true`/`false` to a preference **the app itself
-reads**, so switching one off really reverts it on the next launch.
+reads**, so switching one off really reverts it on the next launch. Only things
+you may want to change later are switches.
 
 | Menu switch | Pdb preference |
 |---|---|
-| Force Pro (all entitlements) | `mockIsProUser` |
-| Block all ads | `isADLibDisabled` |
 | Read receipts off | `disableIRLMarkRead` |
 | Ignore IRL “see more” | `ignoreIRLMore` |
 | Stay signed in | `rememberGoogleAuth` |
+| Force offer sheet (dev) | `forceShowOffer` |
+| Use staging backend (dev) | `apiIsStaging` |
 | Show full error messages | `showFullError` |
 | Stream connect toast | `imConnectToast` |
-| Auto-consume coins | `autoConsumePDBCoin` |
 | Force English | `forceEnglish` |
-| Use new post component | `useNewPostComponent` |
 | Verbose file logging | `fileLogLevel` (`4` = info) |
 | Pause Morphe Extras | *(extension-only)* |
+
+Text fields (cleared = off): `morphe_geo_country` → `mockFeedCountryCode`,
+`morphe_whitelist_host` → `whiteListHost`, `morphe_bubble_url` →
+`mockBubbleEntranceURL`, `morphe_mock_latlng` → `mockLatLng`,
+`morphe_instant_chat_user` → `debugInstantChatUserId`.
 
 The values are written to the same `<pkg>_preferences` file the app's own Tweaks
 screen edits, so Pdb's own switches mirror them 1:1 — e.g. `mockIsProUser` shows as
 Pdb's *“Mock you as pro user”* toggle switched **on** at runtime.
 
-“Extras tools” opens a dialog with JSON export/import through the clipboard, a full
-diagnostics report, a maximum-privacy preset and a reset.
+“Extras tools” opens a screen with JSON export/import through the clipboard, a full
+diagnostics report, a maximum-privacy preset, a reset, an any-preference writer,
+read-only chat/visitor data from Pdb's SQLite files, and the MMKV identity /
+realtime-socket controls.
 
 ## Rebuilding for a new Pdb version
 

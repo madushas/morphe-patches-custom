@@ -18,9 +18,8 @@ public final class PdbSettings {
 
     public static final String PREFS_SUFFIX = "_preferences";
 
-    /* ── Extension switches (injected into res/xml/root_preferences.xml) ── */
-    public static final String FORCE_PREMIUM    = "morphe_force_premium";
-    public static final String NO_ADS           = "morphe_no_ads";
+    /* ── Extension switches (injected into res/xml/root_preferences.xml) ──
+       Premium + ad removal are patch-time always-on and intentionally have no row. */
     public static final String PRIVACY_RECEIPTS = "morphe_privacy_receipts";
     public static final String PRIVACY_SEE_MORE = "morphe_privacy_see_more";
     public static final String REMEMBER_AUTH    = "morphe_remember_auth";
@@ -40,7 +39,7 @@ public final class PdbSettings {
     public static final String INSTANT_CHAT_USER = "morphe_instant_chat_user";
 
     public static final String[] SWITCH_KEYS = {
-        FORCE_PREMIUM, NO_ADS, PRIVACY_RECEIPTS, PRIVACY_SEE_MORE, REMEMBER_AUTH,
+        PRIVACY_RECEIPTS, PRIVACY_SEE_MORE, REMEMBER_AUTH,
         FORCE_OFFER, API_STAGING, SHOW_FULL_ERROR, IM_CONNECT_TOAST, FORCE_ENGLISH,
         ADVANCED_LOGGING, GLOBAL_PAUSE,
     };
@@ -51,13 +50,15 @@ public final class PdbSettings {
 
     /** Every key owned by the extension — the set export / import / reset rebuild. */
     public static final String[] ALL_KEYS = {
-        FORCE_PREMIUM, NO_ADS, PRIVACY_RECEIPTS, PRIVACY_SEE_MORE, REMEMBER_AUTH,
+        PRIVACY_RECEIPTS, PRIVACY_SEE_MORE, REMEMBER_AUTH,
         FORCE_OFFER, API_STAGING, SHOW_FULL_ERROR, IM_CONNECT_TOAST, FORCE_ENGLISH,
         ADVANCED_LOGGING, GLOBAL_PAUSE,
         GEO_COUNTRY, WHITELIST_HOST, BUBBLE_URL, MOCK_LATLNG, INSTANT_CHAT_USER,
     };
 
-    /* ── Pdb's own preference keys that we drive ── */
+    /* ── Pdb's own preference keys that we drive ──
+       The first two are written unconditionally at every startup (patch-time
+       always-on unlock); the rest follow the injected switches. */
     public static final String PDB_MOCK_PRO     = "mockIsProUser";
     public static final String PDB_AD_OFF       = "isADLibDisabled";
     public static final String PDB_NO_READ      = "disableIRLMarkRead";

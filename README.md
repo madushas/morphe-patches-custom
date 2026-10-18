@@ -18,7 +18,7 @@ can be built and maintained on its own.
 | **Bypass PairIP license check** | ✅ | Replaces `com.pairip.application.Application` with `pdb.app.App`, drops `LicenseActivity` / `CHECK_LICENSE`, no-ops `LicenseClient`. |
 | **Remove ads** | ✅ | Disables the ad SDK init providers (GMS, AppLovin, Vungle, Yandex) and sets the app's own `isADLibDisabled`. |
 | **Allow standalone install (split-less APK)** | ✅ | The upstream base APK declares `requiredSplitTypes`, which blocks a standalone install; this removes it. |
-| **Pdb Extras feature menu** | ✅ | Adds a **“Morphe — Pdb Extras”** section to Pdb's built-in Tweaks screen (Settings → Tweaks): 12 switches plus an **Extras tools** screen (JSON export / import, diagnostics, maximum-privacy preset, reset). |
+| **Pdb Extras feature menu** | ✅ | Adds a **“Morphe — Pdb Extras”** section to Pdb's built-in Tweaks screen (Settings → tap the version row **4×**): 10 switches + 5 text overrides plus an **Extras tools** screen (export / import, diagnostics, presets, any-preference writer, chat data, MMKV identity controls). Premium and ad removal are patch-time and have no switch. |
 
 Optional shared patches (disabled by default): *Spoof app signature*,
 *Spoof install source*, *Spoof Widevine / DRM*.

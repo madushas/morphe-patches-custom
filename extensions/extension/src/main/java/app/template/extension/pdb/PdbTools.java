@@ -67,8 +67,7 @@ public final class PdbTools {
     /** Short header shown at the top of the tools screen. */
     public static String summary(Context ctx) {
         SharedPreferences sp = prefs(ctx);
-        return "Force Pro: " + onOff(PdbSettings.getBool(sp, PdbSettings.FORCE_PREMIUM, true))
-            + "    Ads blocked: " + onOff(PdbSettings.getBool(sp, PdbSettings.NO_ADS, true))
+        return "Premium + ads: unlocked at patch time (always on)"
             + "    Paused: " + onOff(PdbSettings.getBool(sp, PdbSettings.GLOBAL_PAUSE, false))
             + "\nValues live in " + ctx.getPackageName() + PdbSettings.PREFS_SUFFIX
             + "    MMKV: " + (PdbMmkv.available() ? "ok" : "unavailable");
@@ -143,13 +142,11 @@ public final class PdbTools {
         return restored;
     }
 
-    /** Preset: maximum privacy, paying nothing for it. */
+    /** Preset: maximum privacy, paying nothing for it. Premium/ads stay patched on. */
     public static void applyPrivacyPreset(Context ctx) {
         prefs(ctx).edit()
             .putBoolean(PdbSettings.PRIVACY_RECEIPTS, true)
             .putBoolean(PdbSettings.PRIVACY_SEE_MORE, true)
-            .putBoolean(PdbSettings.NO_ADS, true)
-            .putBoolean(PdbSettings.FORCE_PREMIUM, true)
             .putBoolean(PdbSettings.SHOW_FULL_ERROR, false)
             .putBoolean(PdbSettings.IM_CONNECT_TOAST, false)
             .apply();
