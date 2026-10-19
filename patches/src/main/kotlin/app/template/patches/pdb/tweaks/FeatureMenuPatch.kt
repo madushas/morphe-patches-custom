@@ -16,6 +16,7 @@ private const val INIT_PROVIDER = "app.template.extension.pdb.PdbInitProvider"
 private const val EXTRAS_ACTIVITY = "app.template.extension.pdb.PdbExtrasActivity"
 private const val SETTINGS_LAYOUT = "res/layout/fragment_app_setting.xml"
 private const val ENTRY_ID = "morphe_extras_entry"
+private const val DEV_ID = "morphe_dev_entry"
 
 private fun Document.el(tag: String, vararg attrs: Pair<String, String>): Element =
     createElement(tag).apply { attrs.forEach { (k, v) -> setAttribute(k, v) } }
@@ -66,7 +67,7 @@ val pdbExtrasResourcePatch = resourcePatch(
                 "android:layout_height" to "wrap_content",
                 "android:layout_marginTop" to "24.0dip",
                 "android:layout_marginStart" to "24.0dip",
-                "android:text" to "Morphe",
+                "android:text" to "Pdb Extras",
             )
             val card = doc.el(
                 "LinearLayout",
@@ -87,7 +88,17 @@ val pdbExtrasResourcePatch = resourcePatch(
                 "app:ac_show_divider" to "false",
                 "app:ac_text" to "Pdb Extras \u2014 settings, tools & unlocks",
             )
+            val devEntry = doc.el(
+                "pdb.app.base.wigets.ActionCell",
+                "android:id" to "@+id/$DEV_ID",
+                "android:layout_width" to "fill_parent",
+                "android:layout_height" to "wrap_content",
+                "app:ac_show_arrow" to "true",
+                "app:ac_show_divider" to "false",
+                "app:ac_text" to "Open native dev screen (Tweaks)",
+            )
             card.appendChild(entry)
+            card.appendChild(devEntry)
             content.insertBefore(label, content.firstChild)
             content.insertBefore(card, content.firstChild.nextSibling)
         }

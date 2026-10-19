@@ -30,6 +30,8 @@ public final class PdbSettings {
     public static final String FORCE_ENGLISH    = "morphe_force_english";
     public static final String ADVANCED_LOGGING = "morphe_advanced_logging";
     public static final String GLOBAL_PAUSE     = "morphe_global_pause";
+    public static final String ROW_ID_CHIPS     = "morphe_row_id_chips";
+    public static final String IDS_EVERYWHERE   = "morphe_ids_everywhere";
 
     /* ── Extension text overrides (EditTextPreference rows) ── */
     public static final String GEO_COUNTRY      = "morphe_geo_country";
@@ -38,10 +40,13 @@ public final class PdbSettings {
     public static final String MOCK_LATLNG      = "morphe_mock_latlng";
     public static final String INSTANT_CHAT_USER = "morphe_instant_chat_user";
 
+    /* Bookkeeping (not rows). */
+    public static final String ICON_ALIAS = "morphe_icon_alias";
+
     public static final String[] SWITCH_KEYS = {
         PRIVACY_RECEIPTS, PRIVACY_SEE_MORE, REMEMBER_AUTH,
         FORCE_OFFER, API_STAGING, SHOW_FULL_ERROR, IM_CONNECT_TOAST, FORCE_ENGLISH,
-        ADVANCED_LOGGING, GLOBAL_PAUSE,
+        ADVANCED_LOGGING, GLOBAL_PAUSE, ROW_ID_CHIPS, IDS_EVERYWHERE,
     };
 
     public static final String[] TEXT_KEYS = {
@@ -52,8 +57,9 @@ public final class PdbSettings {
     public static final String[] ALL_KEYS = {
         PRIVACY_RECEIPTS, PRIVACY_SEE_MORE, REMEMBER_AUTH,
         FORCE_OFFER, API_STAGING, SHOW_FULL_ERROR, IM_CONNECT_TOAST, FORCE_ENGLISH,
-        ADVANCED_LOGGING, GLOBAL_PAUSE,
+        ADVANCED_LOGGING, GLOBAL_PAUSE, ROW_ID_CHIPS, IDS_EVERYWHERE,
         GEO_COUNTRY, WHITELIST_HOST, BUBBLE_URL, MOCK_LATLNG, INSTANT_CHAT_USER,
+        ICON_ALIAS,
     };
 
     /* ── Pdb's own preference keys that we drive ──
