@@ -7,6 +7,10 @@ android {
     buildFeatures {
         buildConfig = true
     }
+    defaultConfig {
+        // Single source of truth: the bundle version in gradle.properties.
+        buildConfigField("String", "EXTRAS_VERSION", "\"${project.version}\"")
+    }
     lint {
         abortOnError = false
         checkReleaseBuilds = false

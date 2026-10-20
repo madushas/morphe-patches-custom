@@ -31,7 +31,7 @@ import java.util.Map;
  */
 public final class PdbDatabase {
 
-    private static final int MAX_CHARS = 6000;
+    private static final int MAX_CHARS = 12000;
 
     private PdbDatabase() {}
 
@@ -52,6 +52,9 @@ public final class PdbDatabase {
             String name = f.getName();
             if (!f.isFile()) continue;
             if (!name.endsWith(".db")) continue;
+            // Firebase's local measurement store also happens to contain a
+            // `messages` table; it is analytics, not Pdb chat data.
+            if (name.startsWith("google_app_measurement")) continue;
             out.add(f);
         }
         return out;
@@ -134,6 +137,35 @@ public final class PdbDatabase {
         return truncate(sb.toString());
     }
 
+    /** CREATE TABLE SQL for every app database, to diagnose schema mismatches. */
+    public static String schema(Context ctx) {
+        StringBuilder sb = new StringBuilder();
+        for (File f : dbFiles(ctx)) {
+            sb.append("\n").append(f.getName()).append('\n');
+            SQLiteDatabase db = null;
+            Cursor c = null;
+            try {
+                db = open(f);
+                c = db.rawQuery(
+                    "SELECT name, sql FROM sqlite_master WHERE type='table'"
+                        + " AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'room_%'"
+                        + " ORDER BY name", null);
+                while (c.moveToNext()) {
+                    sb.append("\n-- ").append(c.getString(0)).append('\n')
+                        .append(c.getString(1) == null ? "(no schema)" : c.getString(1))
+                        .append('\n');
+                }
+            } catch (Throwable t) {
+                sb.append("  open failed: ").append(t).append('\n');
+            } finally {
+                if (c != null) c.close();
+                if (db != null) db.close();
+            }
+        }
+        if (sb.length() == 0) sb.append("No app database files found.");
+        return truncate(sb.toString());
+    }
+
     /**
      * Most recent chat messages, newest first.
      *
@@ -141,7 +173,9 @@ public final class PdbDatabase {
      */
     public static String chats(Context ctx, String query, int limit) {
         File file = dbWith(ctx, "messages");
-        if (file == null) return "No chat database with a `messages` table was found.";
+        if (file == null) {
+            return channels(ctx, query, limit);
+        }
         SQLiteDatabase db = null;
         Cursor c = null;
         try {
@@ -153,8 +187,11 @@ public final class PdbDatabase {
                 ? new String[]{String.valueOf(limit)}
                 : new String[]{"%" + query.trim() + "%", String.valueOf(limit)};
 
+            boolean hasUsers = tables(db).contains("users");
             String sql = "SELECT m.createDate, m.channelId, m.creator, m.text,"
-                + " (SELECT u.username FROM users u WHERE u.id = m.creator) AS uname,"
+                + (hasUsers
+                    ? " (SELECT u.username FROM users u WHERE u.id = m.creator) AS uname,"
+                    : " NULL AS uname,")
                 + " m.isActive"
                 + " FROM messages m WHERE " + filter
                 + " ORDER BY m.createDate DESC LIMIT ?";
@@ -168,9 +205,11 @@ public final class PdbDatabase {
             int n = 0;
             while (c.moveToNext()) {
                 n++;
+                String uname = c.getString(4);
+                if (uname == null) uname = usernameFor(ctx, c.getString(2));
                 sb.append('\n')
                     .append('[').append(date(c.getLong(0))).append("] ")
-                    .append(c.getString(4) != null ? "@" + c.getString(4) : shortId(c.getString(2)))
+                    .append(uname != null ? "@" + uname : shortId(c.getString(2)))
                     .append(c.getInt(5) == 0 ? " (deleted)" : "")
                     .append('\n')
                     .append(c.getString(3))
@@ -201,8 +240,7 @@ public final class PdbDatabase {
         try {
             db = open(file);
             c = db.rawQuery(
-                "SELECT r.created_at, r.uid, r.target_uid, r.type,"
-                    + " (SELECT u.username FROM users u WHERE u.id = r.uid) AS uname"
+                "SELECT r.created_at, r.uid, r.target_uid, r.type"
                     + " FROM profile_view_record r ORDER BY r.created_at DESC LIMIT ?",
                 new String[]{String.valueOf(limit)});
             StringBuilder sb = new StringBuilder(file.getName() + " — profile views\n");
@@ -211,9 +249,10 @@ public final class PdbDatabase {
             while (c.moveToNext()) {
                 n++;
                 String uid = c.getString(1);
+                String uname = usernameFor(ctx, uid);
                 sb.append('\n')
                     .append('[').append(date(c.getLong(0))).append("] ")
-                    .append(c.getString(4) != null ? "@" + c.getString(4) : shortId(uid))
+                    .append(uname != null ? "@" + uname : shortId(uid))
                     .append("  type ").append(c.getInt(3))
                     .append("\n  viewer ").append(shortId(uid))
                     .append("  profile ").append(shortId(c.getString(2)))
@@ -315,6 +354,10 @@ public final class PdbDatabase {
         String value = input.trim().replaceFirst("^@", "").replaceFirst("^#", "");
         if (value.isEmpty()) return null;
         if (knownUserIds(ctx).contains(value)) return value;
+        // Pdb user ids are numeric. The local `users` table only contains people
+        // you have chatted with, so a valid id may not be in the cache yet; pass
+        // numeric ids straight through so profile/chat navigation still works.
+        if (value.matches("\\d{3,}")) return value;
         return idForUsername(ctx, value);
     }
 
@@ -329,7 +372,10 @@ public final class PdbDatabase {
         String id = resolveUserId(ctx, input);
         if (id == null) return "Not found locally: \"" + input + "\"";
         File file = dbWith(ctx, "users");
-        if (file == null) return "No local users table.";
+        if (file == null) {
+            return "No local users table.\n\nPdb's SQLite store on this build has no "
+                + "`users` cache; use Open profile / Instant-chat with a numeric id instead.";
+        }
         SQLiteDatabase db = null;
         Cursor c = null;
         try {
@@ -370,28 +416,109 @@ public final class PdbDatabase {
         }
     }
 
+    /**
+     * Local channel table ({@code channel_info} in {@code pdb_app_go.db}).
+     * On this build the message text itself is not stored in SQLite; what is here
+     * is one row per conversation: its draft, streak id and read-receipt flags.
+     */
+    public static String channels(Context ctx, String query, int limit) {
+        File file = dbWith(ctx, "channel_info");
+        if (file == null) return "No local channel table found.";
+        SQLiteDatabase db = null;
+        Cursor c = null;
+        try {
+            db = open(file);
+            String filter = query == null || query.trim().isEmpty()
+                ? ""
+                : " WHERE (cid LIKE ? OR draft_text LIKE ?)";
+            String[] args = query == null || query.trim().isEmpty()
+                ? new String[]{String.valueOf(limit)}
+                : new String[]{"%" + query.trim() + "%", "%" + query.trim() + "%",
+                               String.valueOf(limit)};
+            c = db.rawQuery(
+                "SELECT cid, streak_id, back_prompt_time, request_reply_tracked,"
+                    + " request_reply_any_tracked, draft_text FROM channel_info"
+                    + filter + " ORDER BY back_prompt_time DESC, cid LIMIT ?", args);
+            StringBuilder sb = new StringBuilder(file.getName() + " — local channels\n");
+            sb.append("(message text is not stored locally; draft / streak / flags only)\n");
+            int n = 0;
+            while (c.moveToNext()) {
+                n++;
+                sb.append('\n').append(c.getString(0))
+                    .append("  #").append(shortId(c.getString(0)));
+                String streak = c.getString(1);
+                if (streak != null && !streak.isEmpty()) sb.append("  streak ").append(streak);
+                sb.append("\n  read-tracked ").append(c.getInt(3) != 0 ? "yes" : "no")
+                    .append("   any-tracked ").append(c.getInt(4) != 0 ? "yes" : "no");
+                long back = c.getLong(2);
+                if (back > 0) sb.append("   back-prompt ").append(date(back));
+                String draft = c.getString(5);
+                if (draft != null && !draft.isEmpty()) {
+                    sb.append("\n  draft: ").append(draft.replace('\n', ' '));
+                }
+                sb.append('\n');
+            }
+            if (n == 0) return query == null || query.trim().isEmpty()
+                ? "No local channels recorded yet."
+                : "No local channels match \"" + query.trim() + "\".";
+            sb.append('\n').append(n).append(" channel(s)");
+            return truncate(sb.toString());
+        } catch (Throwable t) {
+            return "Channel read failed: " + t;
+        } finally {
+            if (c != null) c.close();
+            if (db != null) db.close();
+        }
+    }
+
     /** Unsent message drafts per conversation (never surfaced by the stock app). */
     public static String drafts(Context ctx, int limit) {
-        File file = dbWith(ctx, "channel_local_configs");
-        if (file == null) return "No database with a `channel_local_configs` table was found.";
+        File file = dbWith(ctx, "channel_info");
+        if (file != null) {
+            SQLiteDatabase db = null;
+            Cursor c = null;
+            try {
+                db = open(file);
+                c = db.rawQuery(
+                    "SELECT cid, draft_text, back_prompt_time FROM channel_info"
+                        + " WHERE draft_text IS NOT NULL AND draft_text != ''"
+                        + " ORDER BY back_prompt_time DESC LIMIT ?",
+                    new String[]{String.valueOf(limit)});
+                StringBuilder sb = new StringBuilder(file.getName() + " — unsent drafts\n");
+                int n = 0;
+                while (c.moveToNext()) {
+                    n++;
+                    sb.append('\n').append("channel ").append(shortId(c.getString(0)))
+                        .append("  [").append(date(c.getLong(2))).append("]\n  ")
+                        .append(c.getString(1)).append('\n');
+                }
+                if (n == 0) return "No unsent drafts stored locally.";
+                sb.append('\n').append(n).append(" draft(s)");
+                return truncate(sb.toString());
+            } catch (Throwable t) {
+                return "Draft read failed: " + t;
+            } finally {
+                if (c != null) c.close();
+                if (db != null) db.close();
+            }
+        }
+        // Older builds kept drafts in an IM-store table.
+        file = dbWith(ctx, "channel_local_configs");
+        if (file == null) return "No local channel table with drafts was found.";
         SQLiteDatabase db = null;
         Cursor c = null;
         try {
             db = open(file);
             c = db.rawQuery(
-                "SELECT l.channelId, l.draft, l.updatedAt,"
-                    + " (SELECT ch.name FROM channels ch WHERE ch.id = l.channelId) AS cname"
-                    + " FROM channel_local_configs l"
-                    + " WHERE l.draft IS NOT NULL AND l.draft != ''"
-                    + " ORDER BY l.updatedAt DESC LIMIT ?",
+                "SELECT channelId, draft, updatedAt FROM channel_local_configs"
+                    + " WHERE draft IS NOT NULL AND draft != ''"
+                    + " ORDER BY updatedAt DESC LIMIT ?",
                 new String[]{String.valueOf(limit)});
             StringBuilder sb = new StringBuilder(file.getName() + " — unsent drafts\n");
             int n = 0;
             while (c.moveToNext()) {
                 n++;
-                String name = c.getString(3);
-                sb.append('\n')
-                    .append(name != null && !name.isEmpty() ? name : "channel " + shortId(c.getString(0)))
+                sb.append('\n').append("channel ").append(shortId(c.getString(0)))
                     .append("  [").append(date(c.getLong(2))).append("]\n  ")
                     .append(c.getString(1)).append('\n');
             }
@@ -408,8 +535,51 @@ public final class PdbDatabase {
 
     /** Conversations ranked by chat streak (who is about to break one). */
     public static String streaks(Context ctx, int limit) {
-        File file = dbWith(ctx, "users");
-        if (file == null) return "No local users table.";
+        File file = dbWith(ctx, "channel_info");
+        if (file != null) {
+            SQLiteDatabase db = null;
+            Cursor c = null;
+            try {
+                db = open(file);
+                c = db.rawQuery(
+                    "SELECT cid, streak_id, back_prompt_time, request_reply_tracked"
+                        + " FROM channel_info WHERE streak_id IS NOT NULL AND streak_id != ''",
+                    null);
+                List<String[]> rows = new ArrayList<>();
+                while (c.moveToNext()) rows.add(new String[]{
+                    c.getString(0), c.getString(1), String.valueOf(c.getLong(2)),
+                    String.valueOf(c.getInt(3))});
+                rows.sort((a, b) -> Long.compare(streakValue(b[1]), streakValue(a[1])));
+                StringBuilder sb = new StringBuilder("Streak radar (local channel table)\n");
+                int n = 0;
+                for (String[] r : rows) {
+                    if (n++ >= limit) break;
+                    sb.append('\n').append("channel ").append(shortId(r[0]))
+                        .append("\n  streak ").append(r[1])
+                        .append("  read-tracked ").append(r[3].equals("1") ? "yes" : "no");
+                    long back = 0;
+                    try {
+                        back = Long.parseLong(r[2]);
+                    } catch (NumberFormatException ignored) {
+                    }
+                    if (back > 0) sb.append("\n  back-prompt ").append(date(back));
+                    sb.append('\n');
+                }
+                if (n == 0) return "No chat streaks recorded locally yet.";
+                return truncate(sb.toString());
+            } catch (Throwable t) {
+                return "Streak read failed: " + t;
+            } finally {
+                if (c != null) c.close();
+                if (db != null) db.close();
+            }
+        }
+        // Older builds cached streaks per user.
+        file = dbWith(ctx, "users");
+        if (file == null) {
+            return "No local channel table.\n\nPdb's SQLite store on this build has no "
+                + "`users` cache; use Open profile / Instant-chat with a numeric id instead.";
+        }
         SQLiteDatabase db = null;
         Cursor c = null;
         try {
@@ -418,7 +588,7 @@ public final class PdbDatabase {
                 "SELECT id, username, chatStreakProgress, lastActive, isPro, showOnline"
                     + " FROM users WHERE chatStreakProgress IS NOT NULL AND chatStreakProgress != ''",
                 null);
-            List<long[]> byStreak = new ArrayList<>(); // streak value, row index
+            List<long[]> byStreak = new ArrayList<>();
             List<String[]> rows = new ArrayList<>();
             while (c.moveToNext()) rows.add(new String[]{
                 c.getString(0), c.getString(1), c.getString(2), String.valueOf(c.getLong(3)),
@@ -439,12 +609,6 @@ public final class PdbDatabase {
                     .append(r[4].equals("1") ? "  PRO" : "")
                     .append("  online ").append(r[5].equals("1") ? "shown" : "hidden")
                     .append('\n');
-                long last = 0;
-                try {
-                    last = Long.parseLong(r[3]);
-                } catch (NumberFormatException ignored) {
-                }
-                if (last > 0) sb.append("  last active ").append(date(last)).append('\n');
             }
             if (n == 0) return "No chat streaks recorded locally yet.";
             return truncate(sb.toString());
@@ -456,10 +620,40 @@ public final class PdbDatabase {
         }
     }
 
-    /** Aggregate statistics over the local message store. */
+    /** Aggregate statistics over whatever local store exists. */
     public static String chatStats(Context ctx) {
         File file = dbWith(ctx, "messages");
-        if (file == null) return "No chat database with a `messages` table was found.";
+        if (file == null) {
+            File channels = dbWith(ctx, "channel_info");
+            if (channels == null) {
+                return "No local SQLite message table found.\n\n"
+                    + "Pdb keeps this account's chat history outside SQLite; use the "
+                    + "app's own chat UI for messages.";
+            }
+            SQLiteDatabase db = null;
+            Cursor c = null;
+            try {
+                db = open(channels);
+                c = db.rawQuery(
+                    "SELECT COUNT(*),"
+                        + " SUM(CASE WHEN draft_text != '' THEN 1 ELSE 0 END),"
+                        + " SUM(CASE WHEN streak_id != '' THEN 1 ELSE 0 END),"
+                        + " SUM(CASE WHEN request_reply_tracked != 0 THEN 1 ELSE 0 END)"
+                        + " FROM channel_info", null);
+                if (!c.moveToFirst()) return "No local channels recorded yet.";
+                return "SQLite message store: none (message text is not kept locally).\n"
+                    + "Local channel table: " + c.getLong(0) + " channel(s)\n"
+                    + "  drafts: " + c.getLong(1) + "\n"
+                    + "  streaks: " + c.getLong(2) + "\n"
+                    + "  read-receipt tracking: " + c.getLong(3) + "\n\n"
+                    + "Use Recent chats for the channel list and Unsent drafts for drafts.";
+            } catch (Throwable t) {
+                return "Stats failed: " + t;
+            } finally {
+                if (c != null) c.close();
+                if (db != null) db.close();
+            }
+        }
         SQLiteDatabase db = null;
         Cursor c = null;
         try {
@@ -477,15 +671,19 @@ public final class PdbDatabase {
                 sb.append('\n');
             }
             c.close();
+            boolean hasUsers = tables(db).contains("users");
             c = db.rawQuery(
                 "SELECT creator, COUNT(*) AS n,"
-                    + " (SELECT u.username FROM users u WHERE u.id = creator) AS uname"
+                    + (hasUsers
+                        ? " (SELECT u.username FROM users u WHERE u.id = creator) AS uname"
+                        : " NULL AS uname")
                     + " FROM messages GROUP BY creator ORDER BY n DESC LIMIT 10", null);
             sb.append("\nTop partners\n");
             int n = 0;
             while (c.moveToNext()) {
                 n++;
                 String name = c.getString(2);
+                if (name == null) name = usernameFor(ctx, c.getString(0));
                 sb.append("  ").append(name != null ? "@" + name : shortId(c.getString(0)))
                     .append(" — ").append(c.getLong(1)).append(" message(s)\n");
             }
@@ -493,6 +691,89 @@ public final class PdbDatabase {
             return truncate(sb.toString());
         } catch (Throwable t) {
             return "Stats failed: " + t;
+        } finally {
+            if (c != null) c.close();
+            if (db != null) db.close();
+        }
+    }
+
+    /** First rows of any local table (read-only schema/values inspector). */
+    public static String table(Context ctx, String name, int limit) {
+        if (name == null || name.trim().isEmpty()) return "Enter a table name.";
+        String table = name.trim();
+        if (!table.matches("[A-Za-z0-9_]+")) {
+            return "Invalid table name (letters, digits and _ only).";
+        }
+        File file = dbWith(ctx, table);
+        if (file == null) {
+            return "No app database has a table named `" + table + "`.\n"
+                + "Use Dump database schema to see the tables that exist.";
+        }
+        SQLiteDatabase db = null;
+        Cursor c = null;
+        try {
+            db = open(file);
+            c = db.rawQuery("SELECT * FROM `" + table + "` LIMIT " + Math.max(1, limit), null);
+            StringBuilder sb = new StringBuilder(file.getName() + " → " + table + "\n");
+            String[] cols = c.getColumnNames();
+            int n = 0;
+            while (c.moveToNext()) {
+                n++;
+                sb.append('\n').append("row ").append(n).append('\n');
+                for (int i = 0; i < cols.length; i++) {
+                    String value;
+                    try {
+                        value = c.getString(i);
+                    } catch (Throwable t) {
+                        value = "(unreadable)";
+                    }
+                    if (value == null) value = "NULL";
+                    if (value.length() > 240) value = value.substring(0, 240) + "…";
+                    sb.append("  ").append(cols[i]).append(" = ").append(value).append('\n');
+                }
+            }
+            if (n == 0) sb.append("(table is empty)\n");
+            else sb.append('\n').append(n).append(" row(s) shown");
+            return truncate(sb.toString());
+        } catch (Throwable t) {
+            return "Table read failed: " + t;
+        } finally {
+            if (c != null) c.close();
+            if (db != null) db.close();
+        }
+    }
+
+    /** Locally cached profile-feed items (who was shown, and whether it was missed). */
+    public static String feed(Context ctx, int limit) {
+        File file = dbWith(ctx, "profile_feed");
+        if (file == null) return "No profile_feed table found.";
+        SQLiteDatabase db = null;
+        Cursor c = null;
+        try {
+            db = open(file);
+            c = db.rawQuery(
+                "SELECT created_at, user_id, target_user_id, missed_timestamp, source_json"
+                    + " FROM profile_feed ORDER BY created_at DESC LIMIT ?",
+                new String[]{String.valueOf(limit)});
+            StringBuilder sb = new StringBuilder(file.getName() + " — profile feed\n");
+            int n = 0;
+            while (c.moveToNext()) {
+                n++;
+                String source = c.getString(4);
+                sb.append('\n').append('[').append(date(c.getLong(0))).append("] ")
+                    .append("user ").append(shortId(c.getString(1)))
+                    .append(" → target ").append(shortId(c.getString(2)))
+                    .append("  missed ").append(c.getLong(3) > 0 ? "yes" : "no");
+                if (source != null && !source.isEmpty()) {
+                    sb.append("\n  ").append(source.length() > 200
+                        ? source.substring(0, 200) + "…" : source);
+                }
+                sb.append('\n');
+            }
+            if (n == 0) return "No profile-feed rows recorded locally.";
+            return truncate(sb.toString());
+        } catch (Throwable t) {
+            return "Feed read failed: " + t;
         } finally {
             if (c != null) c.close();
             if (db != null) db.close();
@@ -508,9 +789,7 @@ public final class PdbDatabase {
         try {
             db = open(file);
             c = db.rawQuery(
-                "SELECT r.uid,"
-                    + " (SELECT u.username FROM users u WHERE u.id = r.uid) AS uname,"
-                    + " COUNT(*) AS n, MAX(r.created_at) AS last_at"
+                "SELECT r.uid, COUNT(*) AS n, MAX(r.created_at) AS last_at"
                     + " FROM profile_view_record r GROUP BY r.uid"
                     + " ORDER BY n DESC LIMIT ?",
                 new String[]{String.valueOf(limit)});
@@ -518,12 +797,13 @@ public final class PdbDatabase {
             int n = 0;
             while (c.moveToNext()) {
                 n++;
-                String name = c.getString(1);
+                String uid = c.getString(0);
+                String name = usernameFor(ctx, uid);
                 sb.append('\n')
-                    .append(name != null ? "@" + name : shortId(c.getString(0)))
-                    .append("  #").append(shortId(c.getString(0)))
-                    .append("\n  ").append(c.getLong(2)).append(" view(s), last ")
-                    .append(date(c.getLong(3))).append('\n');
+                    .append(name != null ? "@" + name : shortId(uid))
+                    .append("  #").append(shortId(uid))
+                    .append("\n  ").append(c.getLong(1)).append(" view(s), last ")
+                    .append(date(c.getLong(2))).append('\n');
             }
             if (n == 0) return "No profile views recorded locally.";
             sb.append('\n').append(n).append(" visitor(s)");

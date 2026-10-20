@@ -57,14 +57,20 @@ else
 fi
 echo "  install APK: $INSTALL ($(du -h "$INSTALL" | cut -f1))"
 
-echo "==> Uninstall old $PKG"
-A uninstall "$PKG" 2>&1 | tail -1 || true
-
+# Upgrade in place: uninstalling deletes the signed-in account and all local data,
+# which makes every test build start at the login screen. Only fall back to an
+# uninstall when the package manager refuses the upgrade (different signing key).
 # --no-incremental: an incremental install streams file content from the host, and
 # if the adb session is interrupted the package is left unreadable ("activity does
 # not exist", monkey finds nothing). Force a full write instead.
-echo "==> Install"
-A install --no-incremental -r -d "$INSTALL" 2>&1 | tail -3
+echo "==> Install (upgrade in place, keep app data)"
+INSTALL_OUT="$(A install --no-incremental -r -d "$INSTALL" 2>&1)"
+echo "$INSTALL_OUT" | tail -3
+if echo "$INSTALL_OUT" | grep -qiE "INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match|INSTALL_PARSE_FAILED_INCONSISTENT_CERTIFICATES"; then
+  echo "==> Signature mismatch: uninstalling once (app data will be lost)"
+  A uninstall "$PKG" 2>&1 | tail -1 || true
+  A install --no-incremental -r -d "$INSTALL" 2>&1 | tail -3
+fi
 
 # Wait until the package manager has fully registered the package.
 for _ in $(seq 1 12); do

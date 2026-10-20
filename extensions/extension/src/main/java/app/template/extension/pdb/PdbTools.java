@@ -1,5 +1,7 @@
 package app.template.extension.pdb;
 
+import app.template.extension.BuildConfig;
+
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -67,10 +69,11 @@ public final class PdbTools {
     /** Short header shown at the top of the tools screen. */
     public static String summary(Context ctx) {
         SharedPreferences sp = prefs(ctx);
-        return "Premium + ads: unlocked at patch time (always on)"
-            + "    Paused: " + onOff(PdbSettings.getBool(sp, PdbSettings.GLOBAL_PAUSE, false))
-            + "\nValues live in " + ctx.getPackageName() + PdbSettings.PREFS_SUFFIX
-            + "    MMKV: " + (PdbMmkv.available() ? "ok" : "unavailable");
+        return "Patch v" + BuildConfig.EXTRAS_VERSION
+            + " \u00b7 Pro + ads unlocked"
+            + " \u00b7 Paused " + onOff(PdbSettings.getBool(sp, PdbSettings.GLOBAL_PAUSE, false))
+            + "\n" + ctx.getPackageName() + PdbSettings.PREFS_SUFFIX
+            + " \u00b7 MMKV " + (PdbMmkv.available() ? "ok" : "off");
     }
 
     private static String onOff(boolean value) {
@@ -88,7 +91,11 @@ public final class PdbTools {
         for (String key : PdbSettings.PDB_KEY_ORDER) {
             sb.append("  ").append(key).append(" = ").append(value(sp, key)).append('\n');
         }
-        sb.append("MMKV (files/mmkv/").append(PdbMmkv.MMKV_ID).append(")\n");
+        sb.append("MMKV stores (files/mmkv)\n");
+        for (String id : PdbMmkv.ids()) {
+            sb.append("  ").append(id).append(": ")
+                .append(PdbMmkv.keys(id).size()).append(" key(s)\n");
+        }
         for (String key : identityKeys()) {
             sb.append("  ").append(key).append(" = ").append(PdbMmkv.getString(key)).append('\n');
         }
@@ -333,18 +340,7 @@ public final class PdbTools {
         return "isFakeLogout = " + value + " for " + keys.size() + " key(s)";
     }
 
-    public static String mmkvDump() {
-        StringBuilder sb = new StringBuilder("MMKV store " + PdbMmkv.MMKV_ID + "\n");
-        if (!PdbMmkv.available()) return sb.append("  unavailable\n").toString();
-        SharedPreferences sp = PdbMmkv.store();
-        for (String key : PdbMmkv.keys()) {
-            Object v = null;
-            try {
-                v = sp == null ? null : sp.getAll().get(key);
-            } catch (Throwable ignored) {
-            }
-            sb.append("  ").append(key).append(" = ").append(v).append('\n');
-        }
-        return PdbDatabase.truncate(sb.toString());
+    public static String mmkvDump(Context ctx) {
+        return PdbMmkv.dumpAll(ctx);
     }
 }

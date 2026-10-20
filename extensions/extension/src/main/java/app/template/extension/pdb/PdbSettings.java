@@ -105,6 +105,17 @@ public final class PdbSettings {
         }
     }
 
+    /**
+     * The value a switch effectively has when the user has never touched it.
+     * Must mirror the defaults {@link PdbStartup} applies, otherwise the UI shows
+     * "off" for protections that are actually on.
+     */
+    public static boolean defaultBool(String key) {
+        return PRIVACY_RECEIPTS.equals(key)
+            || PRIVACY_SEE_MORE.equals(key)
+            || REMEMBER_AUTH.equals(key);
+    }
+
     public static String getString(SharedPreferences sp, String key, String def) {
         try {
             String value = sp.getString(key, def);

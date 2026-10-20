@@ -33,13 +33,17 @@ public final class PdbIcons {
         try {
             PackageManager pm = ctx.getPackageManager();
             PackageInfo info = pm.getPackageInfo(ctx.getPackageName(),
-                PackageManager.GET_ACTIVITIES | PackageManager.GET_META_DATA);
+                PackageManager.GET_ACTIVITIES
+                    | PackageManager.GET_DISABLED_COMPONENTS
+                    | PackageManager.GET_META_DATA);
+            java.util.LinkedHashSet<String> found = new java.util.LinkedHashSet<>();
             ActivityInfo[] all = info.activities;
             if (all != null) {
                 for (ActivityInfo ai : all) {
-                    if (ai.name != null && ai.name.startsWith("pdb.app.alias")) out.add(ai.name);
+                    if (ai.name != null && ai.name.startsWith("pdb.app.alias")) found.add(ai.name);
                 }
             }
+            out.addAll(found);
         } catch (Throwable ignored) {
         }
         java.util.Collections.sort(out);
@@ -63,9 +67,10 @@ public final class PdbIcons {
     public static boolean reset(Context ctx) {
         try {
             PackageManager pm = ctx.getPackageManager();
-            String previous = current(ctx);
-            if (previous != null && !previous.isEmpty()) {
-                setEnabled(pm, ctx.getPackageName(), previous, false);
+            // Disable every alias, not just the one we remember enabling: the app
+            // itself may have enabled a theme alias before the extension ran.
+            for (String alias : aliases(ctx)) {
+                setEnabled(pm, ctx.getPackageName(), alias, false);
             }
             setEnabled(pm, ctx.getPackageName(), BASE_LAUNCHER, true);
             PdbTools.prefs(ctx).edit().remove(PdbSettings.ICON_ALIAS).apply();
@@ -83,7 +88,6 @@ public final class PdbIcons {
     public static boolean switchTo(Context ctx, String aliasName) {
         try {
             PackageManager pm = ctx.getPackageManager();
-            String previous = current(ctx);
 
             if (aliasName == null || aliasName.trim().isEmpty()) {
                 return reset(ctx);
@@ -91,13 +95,13 @@ public final class PdbIcons {
             String target = aliasName.trim();
             if (!target.contains(".")) target = "pdb.app.alias" + target;
 
-            setEnabled(pm, ctx.getPackageName(), target, true);
-            if (previous != null && !previous.isEmpty() && !previous.equals(target)) {
-                setEnabled(pm, ctx.getPackageName(), previous, false);
-            } else {
-                // First switch away from the stock entry.
-                setEnabled(pm, ctx.getPackageName(), BASE_LAUNCHER, false);
+            // Only one launcher entry may stay enabled. Disable every other alias
+            // (including one the app enabled from its theme settings) first.
+            for (String alias : aliases(ctx)) {
+                if (!alias.equals(target)) setEnabled(pm, ctx.getPackageName(), alias, false);
             }
+            setEnabled(pm, ctx.getPackageName(), target, true);
+            setEnabled(pm, ctx.getPackageName(), BASE_LAUNCHER, false);
             PdbTools.prefs(ctx).edit().putString(PdbSettings.ICON_ALIAS, target).apply();
             return true;
         } catch (Throwable t) {

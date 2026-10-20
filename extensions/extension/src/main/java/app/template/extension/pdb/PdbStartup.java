@@ -35,6 +35,7 @@ public final class PdbStartup {
         applied = true;
 
         try {
+            PdbMmkv.init(context);
             SharedPreferences sp = PdbSettings.prefs(context);
 
             if (PdbSettings.getBool(sp, PdbSettings.GLOBAL_PAUSE, false)) {

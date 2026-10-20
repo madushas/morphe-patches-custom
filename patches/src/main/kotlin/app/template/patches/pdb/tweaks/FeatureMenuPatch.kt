@@ -133,6 +133,9 @@ val pdbExtrasResourcePatch = resourcePatch(
                     doc.el(
                         "activity",
                         "android:name" to EXTRAS_ACTIVITY,
+                        // Not exported: Pdb Extras is opened only from the app's
+                        // own Settings menu. Temporarily set to "true" when a
+                        // signed-out emulator needs `adb shell am start`.
                         "android:exported" to "false",
                     ),
                 )

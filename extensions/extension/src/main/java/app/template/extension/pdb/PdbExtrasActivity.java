@@ -1,5 +1,7 @@
 package app.template.extension.pdb;
 
+import app.template.extension.BuildConfig;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
@@ -8,6 +10,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
@@ -30,6 +33,7 @@ import java.util.List;
  */
 public final class PdbExtrasActivity extends Activity {
 
+    private FrameLayout root;
     private LinearLayout content;
     private TextView result;
     private final List<EditText> textFields = new ArrayList<>();
@@ -38,14 +42,13 @@ public final class PdbExtrasActivity extends Activity {
     private EditText deeplinkInput;
     private EditText deviceId;
     private EditText imUrl;
+    private EditText tableName;
 
     /** label → morphe key for the switch rows. */
     private static final String[][] SWITCH_ROWS = {
         {"Disable IRL read receipts", PdbSettings.PRIVACY_RECEIPTS},
         {"Ignore IRL \u201csee more\u201d", PdbSettings.PRIVACY_SEE_MORE},
         {"Stay signed in", PdbSettings.REMEMBER_AUTH},
-        {"Show user IDs on list rows", PdbSettings.ROW_ID_CHIPS},
-        {"Show user IDs next to @names", PdbSettings.IDS_EVERYWHERE},
         {"Force offer sheet (dev)", PdbSettings.FORCE_OFFER},
         {"Use staging backend (dev)", PdbSettings.API_STAGING},
         {"Show full error messages", PdbSettings.SHOW_FULL_ERROR},
@@ -66,17 +69,10 @@ public final class PdbExtrasActivity extends Activity {
 
     /** Hidden-screens launcher: label → kept activity class (from Pdb's router map). */
     private static final String[][] HIDDEN_SCREENS = {
-        {"Profile detail (by id)", PdbNav.PROFILE_DETAIL},
-        {"My profile page", PdbNav.USER_PROFILE},
-        {"User database", PdbNav.USER_DATABASE},
         {"Profile visitors", PdbNav.USER_VISITOR},
         {"User center", PdbNav.USER_CENTER},
-        {"Follows", PdbNav.FOLLOWS},
-        {"Personality", PdbNav.PERSONALITY},
-        {"Subconscious", PdbNav.SUBCONSCIOUS},
         {"Coins engage", PdbNav.COINS_ENGAGE},
         {"Balance", PdbNav.BALANCE},
-        {"Award center", PdbNav.AWARD_CENTER},
         {"Community info", PdbNav.COMMUNITY_INFO},
         {"Verify", PdbNav.VERIFY},
         {"Story editor", PdbNav.STORY_EDITOR},
@@ -85,7 +81,6 @@ public final class PdbExtrasActivity extends Activity {
         {"Instant chat history", PdbNav.INSTANT_HISTORY},
         {"Community explore", PdbNav.COMMUNITY_EXPLORE},
         {"Boards explore", PdbNav.BOARD_EXPLORE},
-        {"AI friend detail", PdbNav.AI_DETAIL},
     };
 
     @Override
@@ -96,11 +91,52 @@ public final class PdbExtrasActivity extends Activity {
         } catch (Throwable ignored) {
         }
         try {
+            PdbMmkv.init(this);
             setContentView(buildScreen());
+            applySystemBarInsets();
         } catch (Throwable t) {
             PdbTools.toast(this, "Morphe Extras: " + t);
             finish();
         }
+    }
+
+    /**
+     * Keeps the title below the status bar and the footer above the navigation bar.
+     * The activity uses the app's edge-to-edge theme, so the content would otherwise
+     * start underneath the clock/battery icons.
+     */
+    private void applySystemBarInsets() {
+        if (root == null) return;
+        root.post(new Runnable() {
+            @Override
+            public void run() {
+                int top = 0;
+                int bottom = 0;
+                try {
+                    android.view.WindowInsets insets =
+                        getWindow().getDecorView().getRootWindowInsets();
+                    if (insets != null) {
+                        if (android.os.Build.VERSION.SDK_INT >= 30) {
+                            android.graphics.Insets bars = insets.getInsets(
+                                android.view.WindowInsets.Type.systemBars());
+                            top = bars.top;
+                            bottom = bars.bottom;
+                        } else {
+                            top = insets.getSystemWindowInsetTop();
+                            bottom = insets.getSystemWindowInsetBottom();
+                        }
+                    }
+                } catch (Throwable ignored) {
+                }
+                if (top == 0) {
+                    int id = getResources().getIdentifier("status_bar_height", "dimen", "android");
+                    if (id != 0) top = getResources().getDimensionPixelSize(id);
+                }
+                // Pad the root, not the scrolling content: otherwise rows scroll
+                // underneath the clock/battery icons and the gesture bar.
+                root.setPadding(0, top, 0, bottom);
+            }
+        });
     }
 
     /* ── screen construction ── */
@@ -111,7 +147,7 @@ public final class PdbExtrasActivity extends Activity {
         int pad = PdbUi.dp(this, 16);
         content.setPadding(pad, pad, pad, pad);
 
-        TextView title = PdbUi.text(this, "Pdb Extras", 22, "gray_01", 0xFF1C1C1E);
+        TextView title = PdbUi.text(this, "Pdb Extras v" + BuildConfig.EXTRAS_VERSION, 22, "gray_01", 0xFF1C1C1E);
         title.setPadding(0, 0, 0, PdbUi.dp(this, 4));
         content.addView(title);
 
@@ -129,8 +165,12 @@ public final class PdbExtrasActivity extends Activity {
         footer();
 
         ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
         scroll.addView(content);
-        return scroll;
+        root = new FrameLayout(this);
+        root.addView(scroll, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        return root;
     }
 
     /* ── sections ── */
@@ -163,7 +203,7 @@ public final class PdbExtrasActivity extends Activity {
                 PdbNav.openProfile(PdbExtrasActivity.this, id);
             }
         }));
-        card.addView(row("Direct chat with entered id", new View.OnClickListener() {
+        card.addView(row("Instant-chat as entered id", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 directChat();
@@ -260,6 +300,32 @@ public final class PdbExtrasActivity extends Activity {
                 });
             }
         }));
+        card.addView(row("Dump database schema (CREATE TABLE SQL)", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                runAsync("Schema", new Work() {
+                    @Override
+                    public String run() {
+                        return PdbDatabase.schema(PdbExtrasActivity.this);
+                    }
+                });
+            }
+        }));
+        tableName = PdbUi.field(this, "table name (e.g. channel_info)");
+        tableName.setText("channel_info");
+        card.addView(tableName);
+        card.addView(row("Browse table (first 20 rows)", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                final String name = tableName == null ? "" : tableName.getText().toString();
+                runAsync("Table", new Work() {
+                    @Override
+                    public String run() {
+                        return PdbDatabase.table(PdbExtrasActivity.this, name, 20);
+                    }
+                });
+            }
+        }));
         card.addView(row("Chat statistics", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -312,6 +378,17 @@ public final class PdbExtrasActivity extends Activity {
                     @Override
                     public String run() {
                         return PdbTools.visitorLog(PdbExtrasActivity.this, 50);
+                    }
+                });
+            }
+        }));
+        card.addView(row("Profile feed (local cache)", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                runAsync("Profile feed", new Work() {
+                    @Override
+                    public String run() {
+                        return PdbDatabase.feed(PdbExtrasActivity.this, 30);
                     }
                 });
             }
@@ -445,7 +522,7 @@ public final class PdbExtrasActivity extends Activity {
         card.addView(row("Dump MMKV store", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                show("MMKV", PdbTools.mmkvDump(), true);
+                show("MMKV", PdbTools.mmkvDump(PdbExtrasActivity.this), true);
             }
         }));
     }
@@ -589,7 +666,7 @@ public final class PdbExtrasActivity extends Activity {
         sw.setTextSize(15);
         sw.setAllCaps(false);
         sw.setTextColor(PdbUi.color(this, "gray_01", 0xFF1C1C1E));
-        sw.setChecked(PdbSettings.getBool(PdbTools.prefs(this), key, false));
+        sw.setChecked(PdbSettings.getBool(PdbTools.prefs(this), key, PdbSettings.defaultBool(key)));
         int padV = PdbUi.dp(this, 10);
         sw.setPadding(PdbUi.dp(this, 14), padV, PdbUi.dp(this, 14), padV);
         sw.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -597,9 +674,7 @@ public final class PdbExtrasActivity extends Activity {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 PdbTools.prefs(PdbExtrasActivity.this).edit().putBoolean(key, isChecked).apply();
                 PdbTools.toast(PdbExtrasActivity.this,
-                    "Morphe Extras: " + (isChecked ? "on" : "off")
-                        + (key.equals(PdbSettings.ROW_ID_CHIPS)
-                           || key.equals(PdbSettings.IDS_EVERYWHERE) ? "" : " \u2014 relaunch to apply"));
+                    "Morphe Extras: " + (isChecked ? "on" : "off") + " \u2014 relaunch to apply");
             }
         });
         return sw;

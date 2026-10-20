@@ -1,6 +1,6 @@
 package app.template.extension.pdb;
 
-import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.ColorDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -60,20 +60,28 @@ public final class PdbMenu {
             }
 
             int pad = PdbUi.dp(ctx, 2);
-            LinearLayout outer = new LinearLayout(ctx);
-            outer.setOrientation(LinearLayout.VERTICAL);
+            // content_bg is transparent in the dark theme; use the same opaque
+            // rounded drawable as the settings cards so the popup is not see-through.
+            LinearLayout outer = PdbUi.card(ctx);
             outer.setPadding(pad, pad, pad, pad);
-            GradientDrawable bg = new GradientDrawable();
-            bg.setColor(PdbUi.color(ctx, "content_bg", 0xFFF2F2F7));
-            bg.setCornerRadius(PdbUi.dp(ctx, 12));
-            outer.setBackground(bg);
             outer.addView(scroll);
 
-            PopupWindow popup = new PopupWindow(
-                outer, PdbUi.dp(ctx, 260), ViewGroup.LayoutParams.WRAP_CONTENT, true);
+            // Long lists (launcher aliases, hidden screens) must stay on screen and
+            // scroll inside the popup instead of growing past the display edges.
+            int width = Math.min(PdbUi.dp(ctx, 300),
+                ctx.getResources().getDisplayMetrics().widthPixels - PdbUi.dp(ctx, 32));
+            int maxHeight = Math.round(
+                ctx.getResources().getDisplayMetrics().heightPixels * 0.65f);
+            outer.measure(
+                View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.AT_MOST),
+                View.MeasureSpec.makeMeasureSpec(maxHeight, View.MeasureSpec.AT_MOST));
+            int height = Math.min(outer.getMeasuredHeight(), maxHeight);
+
+            PopupWindow popup = new PopupWindow(outer, width, height, true);
             holder[0] = popup;
             popup.setOutsideTouchable(true);
-            popup.setBackgroundDrawable(new GradientDrawable());
+            popup.setFocusable(true);
+            popup.setBackgroundDrawable(new ColorDrawable(0x00000000));
             popup.showAtLocation(anchor, Gravity.CENTER, 0, 0);
         } catch (Throwable ignored) {
             // A failed popup must never break the host row.

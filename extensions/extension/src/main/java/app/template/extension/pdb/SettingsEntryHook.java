@@ -1,8 +1,11 @@
 package app.template.extension.pdb;
 
+import app.template.extension.BuildConfig;
+
 import android.content.Context;
 import android.content.Intent;
 import android.view.View;
+import android.widget.TextView;
 
 /**
  * Wires the "Pdb Extras" section injected into the top of Pdb's Settings screen.
@@ -42,6 +45,8 @@ public final class SettingsEntryHook {
     private static void wireExtras(View root, Context ctx) {
         View entry = find(root, ctx, ENTRY_ID);
         if (entry == null) return;
+        setRowText(entry, "Pdb Extras \u2014 settings, tools & unlocks  \u00b7  v"
+            + BuildConfig.EXTRAS_VERSION);
         entry.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -59,6 +64,21 @@ public final class SettingsEntryHook {
                 open(v, PdbNav.TWEAKS);
             }
         });
+    }
+
+    private static void setRowText(View row, CharSequence text) {
+        try {
+            row.getClass().getMethod("setActionText", CharSequence.class).invoke(row, text);
+            return;
+        } catch (Throwable ignored) {
+        }
+        try {
+            row.getClass().getMethod("l", String.class, boolean.class)
+                .invoke(row, text.toString(), false);
+            return;
+        } catch (Throwable ignored) {
+        }
+        if (row instanceof TextView) ((TextView) row).setText(text);
     }
 
     private static View find(View root, Context ctx, String idName) {
