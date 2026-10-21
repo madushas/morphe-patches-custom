@@ -404,3 +404,19 @@ Static analysis of the patched dex (`work/apktool`, `work/jadx`):
   is the clean way to anchor on literals. `BuilderInstruction11n` exposes
   `narrowLiteral` (the `literal` field is protected); the label class is
   `builder.Label` (not `BuilderLabel`), branch target is `22t.target`.
+
+## 2026-10-22 · v0.4.0 · power button on every screen
+
+- `HomeBubblePatch.kt` now hooks **two** kept activities: `pdb.app.HomeActivity.onCreate`
+  (as before) and `pdb.app.base.ui.BaseActivity.onCreate` — the shared base, so the
+  bubble is reachable from every Pdb screen. Both fire on Home; the bubble tags
+  itself (`PdbBubble.BUBBLE_TAG` checked with `findViewWithTag`) so exactly one is
+  attached.
+- Denylist in `PdbBubble.isExcluded` (class-name substring): Splash, Login, Story,
+  InstantChatWaiting, PdbExtrasActivity — screens where a floating button is in the
+  way (full-screen media/onboarding, and Extras' own UI).
+- Verified on 0.4.0: HomeActivity = 1 bubble, `pdb.app.chat.ChatActivity` = 1 bubble,
+  menu opens on the chat screen and `Copy last viewed:` follows the screen (it read
+  `mel_708` from the chat header, having read `わたし_290` from a profile page).
+- `PdbBubble` entry points: `onHomeCreated(Activity)` and `onActivityCreated(Activity)`
+  both funnel into `schedule(activity)` → `attach(activity)` after a 600 ms delay.

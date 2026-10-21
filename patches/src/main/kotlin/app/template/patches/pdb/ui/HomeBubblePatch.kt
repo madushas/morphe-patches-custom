@@ -19,6 +19,17 @@ val HomeActivityOnCreateFingerprint = Fingerprint(
 )
 
 /**
+ * `pdb.app.base.ui.BaseActivity.onCreate(Bundle)` — the kept base of almost every
+ * Pdb screen. Hooking it puts the bubble on the whole app, not just Home.
+ */
+val BaseActivityOnCreateFingerprint = Fingerprint(
+    definingClass = "Lpdb/app/base/ui/BaseActivity;",
+    name = "onCreate",
+    returnType = "V",
+    parameters = listOf("Landroid/os/Bundle;"),
+)
+
+/**
  * "Floating power button" — injects a draggable quick-actions bubble into
  * Pdb's main window, giving one-tap access to the everyday switches (profile
  * IDs, receipts, pause), the signed-in profile id and the Extras screen from
@@ -48,6 +59,15 @@ val pdbHomeBubblePatch = bytecodePatch(
         onCreate.addInstruction(
             0,
             "invoke-static {p0}, ${EXT_PREFIX}PdbBubble;->onHomeCreated(Landroid/app/Activity;)V",
+        )
+
+        // Every other screen: BaseActivity is the shared base class. The bubble tags
+        // itself, so Home (which fires both hooks) still gets exactly one.
+        val baseOnCreate = BaseActivityOnCreateFingerprint.method
+            ?: throw IllegalStateException("pdb.app.base.ui.BaseActivity.onCreate not found")
+        baseOnCreate.addInstruction(
+            0,
+            "invoke-static {p0}, ${EXT_PREFIX}PdbBubble;->onActivityCreated(Landroid/app/Activity;)V",
         )
     }
 }

@@ -42,8 +42,25 @@ public final class PdbBubble {
 
     private PdbBubble() {}
 
+    /** Tag identifying the bubble view, so a screen can never get two of them. */
+    private static final Object BUBBLE_TAG = new Object();
+
     /** Hooked from patched {@code HomeActivity.onCreate}. Never throws. */
     public static void onHomeCreated(Activity activity) {
+        schedule(activity);
+    }
+
+    /**
+     * Hooked from patched {@code pdb.app.base.ui.BaseActivity.onCreate}, so the
+     * power button is reachable from every Pdb screen, not just Home. Both hooks
+     * fire on Home (HomeActivity extends BaseActivity); {@link #BUBBLE_TAG} makes
+     * the second one a no-op.
+     */
+    public static void onActivityCreated(Activity activity) {
+        schedule(activity);
+    }
+
+    private static void schedule(Activity activity) {
         try {
             if (activity == null || activity.isFinishing()) return;
             appCtxRef = activity.getApplicationContext();
@@ -52,9 +69,24 @@ public final class PdbBubble {
         }
     }
 
+    /**
+     * Screens where a floating button is in the way rather than useful: full-screen
+     * onboarding/media, the sign-in flow, and the Extras screen itself.
+     */
+    private static boolean isExcluded(Activity activity) {
+        String name = activity.getClass().getName();
+        return name.contains("Splash")
+            || name.contains("Login")
+            || name.contains("Story")
+            || name.contains("InstantChatWaiting")
+            || name.contains("PdbExtrasActivity");
+    }
+
     private static void attach(Activity activity) {
         try {
             if (PdbSettings.getBool(prefs(activity), PdbSettings.BUBBLE, true) == false) return;
+
+            if (isExcluded(activity)) return;
 
             android.content.Context ctx = activity;
             SharedPreferences sp = prefs(activity);
@@ -72,6 +104,8 @@ public final class PdbBubble {
 
             FrameLayout content = activity.findViewById(android.R.id.content);
             if (content == null) return;
+            if (content.findViewWithTag(BUBBLE_TAG) != null) return; // already attached
+            bubble.setTag(BUBBLE_TAG);
 
             FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(size, size);
             // Remember the last position (percent of screen, so rotation survives).

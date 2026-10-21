@@ -1,7 +1,7 @@
-# Pdb Extras — evaluation 0.3.9
+# Pdb Extras — evaluation 0.3.9 / 0.4.0
 
 Device: `emulator-5554` (x86_64, app on ARM translation, `primaryCpuAbi=arm64-v8a`).
-Build: `0.3.9`, upgrade-in-place install (session preserved), signed in as `chad_451` / `6398658`.
+Build: `0.3.9` then `0.4.0`, upgrade-in-place install (session preserved), signed in as `chad_451` / `6398658`.
 
 ## New in this build
 
@@ -64,6 +64,16 @@ Build: `0.3.9`, upgrade-in-place install (session preserved), signed in as `chad
   Coins/boosts/ad budgets likewise.
 - **Not a limit** — "Wonder Chat waiting" is a server-side match with a stranger
   (`common_waiting_for_connect`); there is no client timer to skip.
+
+## 0.4.0 — power button on every screen
+
+- PASS — `HomeBubblePatch` now also hooks `pdb.app.base.ui.BaseActivity.onCreate`.
+- PASS — exactly one bubble on Home (both hooks fire there; the view tag dedups).
+- PASS — bubble present on `pdb.app.chat.ChatActivity`, menu opens there, and
+  `Copy last viewed:` tracked the chat peer (`mel_708`) after read on a profile page
+  (`わたし_290`).
+- PASS — excluded screens (Splash / Login / Story / InstantChatWaiting / Extras)
+  get no bubble.
 
 ## Open items
 
