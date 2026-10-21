@@ -32,6 +32,9 @@ public final class PdbSettings {
     public static final String GLOBAL_PAUSE     = "morphe_global_pause";
     public static final String ROW_ID_CHIPS     = "morphe_row_id_chips";
     public static final String IDS_EVERYWHERE   = "morphe_ids_everywhere";
+    public static final String BUBBLE           = "morphe_bubble";
+    /** Client-side limit extensions (Pdb Extras → Limits). */
+    public static final String NO_VISITOR_LIMIT = "morphe_no_visitor_limit";
 
     /* ── Extension text overrides (EditTextPreference rows) ── */
     public static final String GEO_COUNTRY      = "morphe_geo_country";
@@ -46,7 +49,8 @@ public final class PdbSettings {
     public static final String[] SWITCH_KEYS = {
         PRIVACY_RECEIPTS, PRIVACY_SEE_MORE, REMEMBER_AUTH,
         FORCE_OFFER, API_STAGING, SHOW_FULL_ERROR, IM_CONNECT_TOAST, FORCE_ENGLISH,
-        ADVANCED_LOGGING, GLOBAL_PAUSE, ROW_ID_CHIPS, IDS_EVERYWHERE,
+        ADVANCED_LOGGING, GLOBAL_PAUSE, ROW_ID_CHIPS, IDS_EVERYWHERE, BUBBLE,
+        NO_VISITOR_LIMIT,
     };
 
     public static final String[] TEXT_KEYS = {
@@ -57,7 +61,8 @@ public final class PdbSettings {
     public static final String[] ALL_KEYS = {
         PRIVACY_RECEIPTS, PRIVACY_SEE_MORE, REMEMBER_AUTH,
         FORCE_OFFER, API_STAGING, SHOW_FULL_ERROR, IM_CONNECT_TOAST, FORCE_ENGLISH,
-        ADVANCED_LOGGING, GLOBAL_PAUSE, ROW_ID_CHIPS, IDS_EVERYWHERE,
+        ADVANCED_LOGGING, GLOBAL_PAUSE, ROW_ID_CHIPS, IDS_EVERYWHERE, BUBBLE,
+        NO_VISITOR_LIMIT,
         GEO_COUNTRY, WHITELIST_HOST, BUBBLE_URL, MOCK_LATLNG, INSTANT_CHAT_USER,
         ICON_ALIAS,
     };
@@ -113,7 +118,9 @@ public final class PdbSettings {
     public static boolean defaultBool(String key) {
         return PRIVACY_RECEIPTS.equals(key)
             || PRIVACY_SEE_MORE.equals(key)
-            || REMEMBER_AUTH.equals(key);
+            || REMEMBER_AUTH.equals(key)
+            || IDS_EVERYWHERE.equals(key)
+            || BUBBLE.equals(key);
     }
 
     public static String getString(SharedPreferences sp, String key, String def) {

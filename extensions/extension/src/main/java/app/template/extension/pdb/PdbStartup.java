@@ -60,6 +60,16 @@ public final class PdbStartup {
             boolean imToast  = PdbSettings.getBool(sp, PdbSettings.IM_CONNECT_TOAST, false);
             boolean english  = PdbSettings.getBool(sp, PdbSettings.FORCE_ENGLISH, false);
             boolean verbose  = PdbSettings.getBool(sp, PdbSettings.ADVANCED_LOGGING, false);
+            boolean ids      = PdbSettings.getBool(sp, PdbSettings.IDS_EVERYWHERE, false);
+            boolean noVisLim = PdbSettings.getBool(sp, PdbSettings.NO_VISITOR_LIMIT, false);
+
+            // "IDs everywhere": the bytecode patch (IdsEverywherePatch) reroutes the
+            // profile model's name() getter through PdbUi.decorateName(); this static
+            // flag is what it reads, so it must be set before any UI renders.
+            PdbUi.IDS_EVERYWHERE = ids;
+
+            // Limit extension: read by the patched Lnjf->invoke() comparison.
+            PdbLimits.NO_VISITOR_LIMIT = noVisLim;
 
             // Privacy.
             e.putBoolean(PdbSettings.PDB_NO_READ, receipts);
@@ -104,6 +114,7 @@ public final class PdbStartup {
                     + " imToast=" + imToast
                     + " english=" + english
                     + " verbose=" + verbose
+                    + " idsEverywhere=" + ids
                     + " country=" + quoted(country)
                     + " whitelistHost=" + quoted(host)
                     + " bubbleUrl=" + quoted(bubble)

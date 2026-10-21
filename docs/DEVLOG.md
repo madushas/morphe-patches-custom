@@ -218,3 +218,189 @@ Google. To restore a session either:
   shows 41 keys including `XDeviceId` / `access_token`; Tweaks still has
   `Mock you as pro user` ON and `debug AD` OFF; home ad container is empty.
 - Full matrix: `docs/EVAL-0.3.6.md`.
+
+## Soul page premium configs — server-side pro check (2026-10-21)
+
+Problem the user reports: Soul tab → top-right filter button → "Preferences"
+sheet → **Personality** / **Region** rows are marked Premium. Stock Pdb opens
+a paywall; the patch's mock-pro lets the list open, **but choosing a value
+fails**:
+
+```
+Oops! Something went wrong
+need to be pro user to acces...
+```
+
+Confirmed twice on 0.3.6 (Emulator Pixel 9 Pro, patched build, logged in as id
+6398658):
+
+- Personality → "INTJ, ENTJ" → toast "need to be pro user to access".
+- Region → Thailand (premium country) → same toast.
+
+Findings:
+- The generic title comes from `common_error_state` (res/values/strings.xml);
+  the detail string is **server supplied** — it does not exist anywhere in the
+  apk (grep over res + jadx sources).
+- So: the mock-pro flag is client-local only. The Preferences *sheet* and the
+  option lists open (local gate passed), but the update request is validated
+  by the backend against the account's real subscription. Region/Personality
+  changes are effectively "mostly backend features" as the user suspected.
+- UI layout (stock, 1344x2992): Preferences sheet has Gender (free), Personality
+  (premium → full 16 MBTI combos), Region (premium → US+Worldwide free option
+  plus US/TH/UK/CN/MY/NL/CA/JP/AU/IL... list), toggle "Open to make new friends".
+- Soul feed card layout: `Name ♀ age`, `🇺🇸 State, Country · MBTI`,
+  `# Our MBTI compatibility: NN%`, About Me, action bar. **No profile/user id
+  is rendered on the card** — relevant to the "show id next to user" idea.
+- No HTTP/API logging in the release build; logcat shows only GC/SurfaceFlinger.
+
+Next: find the API call that persists soul preferences and check whether the
+request body carries any client-trusted pro field (isPro/vip/entitlement) that
+a patch could set. If the server reads subscription from its own DB, this
+cannot be fixed by a client patch.
+
+## Root cause of the "need to be pro user" toast (2026-10-21)
+
+Static analysis of the patched dex (`work/apktool`, `work/jadx`):
+
+- The Soul/IRL preferences sheet is fed by `GET /api/v2/irl/feeds/filters`
+  (`j07.f(tab)`, model `x17{results:[u17], showGenderPopup, showLGBTQPopup}`).
+- Saving a filter is `PUT /api/v2/irl/feeds/filters?tab=…` (`j07.j`/`j07.t`),
+  called from `x76.smali:1828` with a **single-entry** `singletonMap(key, value)`:
+  `key = u17.id` (the filter id, e.g. gender/personality/region),
+  `value = x7a.c()` (the chosen option). No pro/entitlement field is sent.
+- The filter schema (`u17`) carries a per-filter `premium` boolean, so the *list*
+  renders premium rows; the **write is validated by the server** against the
+  account's subscription. The error detail text ("need to be pro user to
+  access…") is not in the apk → server-supplied.
+- The local unlock (`zdf.V()` → true, `mockIsProUser`) only makes the sheet and
+  the option lists open. It cannot make the server accept a premium filter write.
+  Conclusion: **premium Soul filters are not reachable by a client patch.**
+
+## Plan proposed to the user (waiting for approval)
+
+1. Confirm + log the root cause (this entry). Keep DEVLOG updated every step.
+2. Prove it end-to-end with the real API: read the app's `access_token` from the
+   app's own MMKV store (extras tool / uiautomator text), then call
+   `GET/PUT /api/v2/irl/feeds/filters` from the host with curl. Capture the exact
+   server error body and check whether any client-trusted field exists.
+3. Deliver, in `0.3.7` (version bumped everywhere it is displayed):
+   - a **friendly failure** instead of the raw "Oops / need to be pro user" toast
+     for server-rejected premium writes (keep the previous value),
+   - a client-side **Soul filter emulation** (locally hide feed cards whose MBTI /
+     country does not match user-chosen preferences saved by the extras screen),
+     so the *effect* of the premium filters is available without the server,
+   - if feasible after recon: show the **profile id on Soul/explore cards**.
+4. Rebuild, install (upgrade in place), verify each item on the emulator, and
+   write `docs/EVAL-0.3.7.md` + DEVLOG entries.
+5. Stop and ask the user for anything that blocks: a real Google Play
+   subscription/trial (only real way to unlock these server features), a second
+   account for chat/visitor tests, or OAuth SHA-1 registration.
+
+## 2026-10-21 → 10-22 · v0.3.7 shipped · IDs everywhere + API recon
+
+### Shipped in 0.3.7
+- New patch **Show profile IDs on names** (`IdsEverywherePatch.kt`), default ON.
+  - Profile contract = obfuscated **interface `jef`** (abstract `name()` + `getId()`).
+    Implementors found by scanning all classes (`classDefForEach`): `v9f` (full
+    model), `pdb/app/repo/user/BasicUser` (KEPT class — what the Soul feed
+    renders!), `wr3`, `ei0`, `spc`, `v`, `zdf` (mock-pro class), `k5d`. `gy6` has
+    no `getId()` → skipped.
+  - Technique: for each implementor with concrete `name()`+`getId()`, rename
+    original → `name$morphe`, add a fresh `name()` wrapper that calls it plus
+    `getId()` and routes both through `PdbUi.decorateName(String,String)`.
+  - Switch `morphe_ids_everywhere` drives a volatile static `PdbUi.IDS_EVERYWHERE`
+    read by decorateName → bytecode ships always-on but inert until enabled.
+  - Verified live: Soul card `୧ ׅ ann ⊹ ۫ . ♡ ۪ ੭ #3489345`; chats list rows
+    `Anna_51 #6399656`, `EQMaster #3626783`, `Lims #2916473`, `わたし_290 #4538111`…
+- `PdbMmkv.dumpAll` truncation raised 160→2000 chars (JWTs are ~300+ chars).
+- v9f gotchas (for future patches): `name()`=field f, `getId()`=field b,
+  `j0()`→`pdb/app/repo/Personality`, `l()`→first personality name,
+  `D()`=field h (source?), `s()`=field g, `l1()`=field c (username-ish).
+  `getDateJoined` does not exist; the no-arg long is `c0()`.
+
+### API recon (premium Soul filters)
+- Full `access_token` extracted via MMKV dump (JWT, user_id 6398658/chad_451).
+- Endpoints (Retrofit interface `j07`): `GET /api/v2/irl/feeds/filters?tab=…`,
+  `PUT /api/v2/irl/feeds/filters` (`@Body` map filterId→value),
+  `…/lgbtq_confirm`, `…/gender_confirm`. Auth header `Authorization: Bearer …`
+  (interceptor `e0d`), plus `X-PDB-Auth-Origin: client`.
+- **api.personality-database.com is behind Cloudflare** — host-side curl gets 403
+  (TLS fingerprint). API proof must run through the app's own client (idea for
+  later: an in-app "API console" tool in Extras that runs requests with the
+  app's Retrofit/OkHttp).
+- User confirmed plan; asked to go further: in-screen power buttons, client-side
+  limit extensions, a dedicated limits/settings page, and a **full redesign of
+  the Pdb Extras page** (too advanced/unfriendly) → 0.3.8 work.
+
+## 2026-10-22 · v0.3.8 → v0.3.9 · in-screen UI, Extras redesign, first real limit patch
+
+### 0.3.8 — floating power button + Extras redesign + 0.3.9 follow-ups
+- **Patch `HomeBubblePatch.kt` / extension `PdbBubble.java`** — draggable ⚡ bubble
+  attached to the decor view from `pdb.app.HomeActivity.onCreate(Bundle)` (KEPT
+  class, so the fingerprint is the declared type). Tap → PopupMenu with hot
+  toggles. Pos saved in prefs. Switch `morphe_bubble` (default ON).
+  Menu today: Show profile IDs · Disable read receipts · Pause Morphe ·
+  Copy my profile ID · **Copy last viewed: <name>** · Open Pdb Extras.
+- **`PdbUi.LAST_PROFILE_ID` / `LAST_PROFILE_NAME`** — recorded inside
+  `decorateName()` on every profile render, which is how the bubble can offer
+  "copy the profile you were just looking at" with no extra hooks. If the
+  always-on `IdsEverywherePatch` is ever disabled this feature goes with it.
+- **`PdbExtrasActivity` redesigned**: header + 5 tab chips
+  (**Quick · Limits · Power · Data · Advanced**), shared result card under the
+  tab bar (GONE until a tool runs), hot toggles write their volatile flag
+  immediately (IDS_EVERYWHERE, NO_VISITOR_LIMIT).
+- **Vision-check pass (Gemini)**: the old screen FAILED twice on leaked jargon —
+  subtitle `pdb.app_preferences • MMKV ok` and EditText hints made of raw pref
+  keys (`mockFeedCountryCode`, `whiteListHost`, `debugInstantChatUserId`).
+  Fixed: subtitle is now `Pro unlocked · Ads off · Morphe active`, hints are plain
+  ("Feed country — two-letter code, e.g. US, TH"), section labels renamed
+  ("Device identity & chat connection", "Backend & identity overrides — leave
+  blank to disable", "Diagnostics — every switch value"). Both tabs now PASS.
+
+### 0.3.9 — first genuine client-side limit patch
+- **Patch `limits/VisitorLimitPatch.kt` + `PdbLimits.java`.**
+  - The limit: Pdb's visitor screen (`Lnjf`, fragment) keeps `visitsViewCount`
+    and `visitsCardClickCount` in a **rolling 1-hour window**
+    (`0x36EE80` ms, keys `visitsViewWindowStart` / `visitsCardClickWindowStart`)
+    and shows the "take a break" sheet once **either reaches 3**, max twice a day
+    (`visitPopupCount` < 2, `s0`). Enforced by the UI-state lambda `Ljjf->invoke()`.
+  - The patch finds that lambda with a **Fingerprint on the string literals**
+    `visitPopupDate` + `visitPopupCount` (class name is R8-obfuscated and
+    `invoke()` alone is ambiguous), then replaces the two comparisons
+    (`if-ge v0,v4,:cond_4` / `if-lt v6,v4,:cond_5`) with
+    `PdbLimits.visitorLimitReached(viewCount, clickCount)` + `if-nez … :cond_5`.
+  - `const/4 v4, 0x3` is **kept** — `:cond_3` is the target of an earlier branch,
+    removing it breaks that jump. Register numbers are read off the matched
+    instructions so a register reshuffle doesn't silently break it.
+  - Extension returns the stock `>= 3` rule when the switch is off, so bytecode
+    ships always-on and the toggle (`morphe_no_visitor_limit`) is hot.
+  - Verified: `UserVisitStatusListActivity` opens with no VerifyError/crash.
+- **Daily-counter reset** (`PdbLimits.resetDailyCounters`): deletes the app's
+  day-scoped counters instead of writing 0 — MMKV is typed per key, so a
+  type-flipping write would make the app's own read throw. 18 keys matched by
+  prefix today (irl*, visits*, visitPopup*, enterChatTimes*, likeProgressGoingDone*).
+  Verified: reported 18 keys dropped, no crash.
+- **Honest limit taxonomy** (in the Limits tab and here):
+  - *Client-side, extendable*: visitor-view rule, local daily counters.
+  - *Server-side, NOT patchable*: premium Soul filters (personality/region) →
+    `PUT /api/v2/irl/feeds/filters` answers "need to be pro user to access";
+    coins/boosts/ad budgets.
+  - *Not a limit at all*: "Wonder Chat waiting" is `common_waiting_for_connect`
+    — a server-side match with a stranger. There is no client timer to skip, and
+    `wonderChatOff` is just the on/off flag. Nothing to patch here.
+
+### Tooling notes
+- Two adb targets are attached: `emulator-5554` (the test device) and an
+  unauthorised `192.168.10.212:5555`. **Always pass `-s emulator-5554`** or set
+  `ANDROID_SERIAL`, otherwise every adb call fails with "more than one
+  device/emulator". `tools/pdbdevice` needs `ANDROID_SERIAL=emulator-5554`.
+- `agent-device` MCP tools returned an internal module error
+  (`./back-mode.js does not provide an export named 'Et'`); uiautomator dumps +
+  `input tap` via adb are the reliable path here.
+- Vision check: `/home/madusha/dev/personal/vision-check/.venv/bin/visual-check
+  check --image <png> --json --prompt-file <txt>`; treat UNCLEAR as not-verified.
+- `mutableMethodBy` does NOT exist in morphe-patcher 1.8.0 — use
+  `mutableClassDefBy(classDef)` then pick the method; `Fingerprint(strings=[...])`
+  is the clean way to anchor on literals. `BuilderInstruction11n` exposes
+  `narrowLiteral` (the `literal` field is protected); the label class is
+  `builder.Label` (not `BuilderLabel`), branch target is `22t.target`.

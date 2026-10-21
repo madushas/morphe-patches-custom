@@ -69,11 +69,7 @@ public final class PdbTools {
     /** Short header shown at the top of the tools screen. */
     public static String summary(Context ctx) {
         SharedPreferences sp = prefs(ctx);
-        return "Patch v" + BuildConfig.EXTRAS_VERSION
-            + " \u00b7 Pro + ads unlocked"
-            + " \u00b7 Paused " + onOff(PdbSettings.getBool(sp, PdbSettings.GLOBAL_PAUSE, false))
-            + "\n" + ctx.getPackageName() + PdbSettings.PREFS_SUFFIX
-            + " \u00b7 MMKV " + (PdbMmkv.available() ? "ok" : "off");
+        return "Pro unlocked \u00b7 Ads off \u00b7 Morphe " + (PdbSettings.getBool(sp, PdbSettings.GLOBAL_PAUSE, false) ? "paused" : "active");
     }
 
     private static String onOff(boolean value) {

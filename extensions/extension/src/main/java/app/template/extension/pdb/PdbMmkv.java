@@ -90,6 +90,11 @@ public final class PdbMmkv {
         }
     }
 
+    /** The MMKV store with one id, or {@code null} when it is not initialised. */
+    public static SharedPreferences storeFor(String id) {
+        return open(id);
+    }
+
     /** Opens an MMKV instance by id (MMKV file name). */
     private static SharedPreferences open(String id) {
         Object o = instance(id);
@@ -310,7 +315,7 @@ public final class PdbMmkv {
             for (String key : keys) {
                 String value = value(id, key);
                 if (value == null) value = "(unreadable)";
-                if (value.length() > 160) value = value.substring(0, 160) + "\u2026";
+                if (value.length() > 2000) value = value.substring(0, 2000) + "\u2026(" + value.length() + " chars)";
                 sb.append("    ").append(key).append(" = ").append(value).append('\n');
             }
         }

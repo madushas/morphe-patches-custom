@@ -25,7 +25,47 @@ public final class PdbUi {
     private static final String ACTION_CELL = "pdb.app.base.wigets.ActionCell";
     private static final String PBD_TEXT_VIEW = "pdb.app.base.wigets.PBDTextView";
 
+    /**
+     * "IDs everywhere" — when true, the bytecode patch reroutes the profile model's
+     * {@code name()} getter through {@link #decorateName(String, String)}, which
+     * appends {@code " #id"} so every surface that renders a profile name (Soul
+     * cards, chat headers, lists, the own drawer) shows the numeric profile id.
+     *
+     * <p>Written by {@link PdbStartup} at app start from the
+     * {@code morphe_ids_everywhere} switch; read from patched bytecode, so it must
+     * be {@code public} and {@code volatile}.
+     */
+    public static volatile boolean IDS_EVERYWHERE = false;
+
+    /**
+     * The last profile the app rendered, remembered by {@link #decorateName} so the
+     * floating power button can offer "copy the profile you were just looking at"
+     * without any extra hooks. Read/written from the main thread only.
+     */
+    public static volatile String LAST_PROFILE_ID = null;
+    public static volatile String LAST_PROFILE_NAME = null;
+
     private PdbUi() {}
+
+    /* ── patched-bytecode helpers ── */
+
+    /**
+     * Appends the profile id to a display name ("Camette" → "Camette #1234567").
+     * Called from patched bytecode on every profile-name read, so it must be cheap
+     * and must never throw (all failure modes return the input unchanged).
+     */
+    public static String decorateName(String name, String id) {
+        if (name != null && id != null && id.length() > 0) {
+            LAST_PROFILE_ID = id;
+            LAST_PROFILE_NAME = name;
+        }
+        if (!IDS_EVERYWHERE || name == null || id == null || id.length() == 0) return name;
+        if (name.length() == 0) return name;
+        // Idempotent: callers may render an already-decorated name (recomposition,
+        // cached models), never stack a second chip.
+        if (name.endsWith("#" + id)) return name;
+        return name + " #" + id;
+    }
 
     /* ── resource lookups ── */
 
