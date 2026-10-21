@@ -420,3 +420,44 @@ Static analysis of the patched dex (`work/apktool`, `work/jadx`):
   `mel_708` from the chat header, having read `わたし_290` from a profile page).
 - `PdbBubble` entry points: `onHomeCreated(Activity)` and `onActivityCreated(Activity)`
   both funnel into `schedule(activity)` → `attach(activity)` after a 600 ms delay.
+
+## 2026-10-22 · release metadata audit (why Morphe Manager still shows 0.2.0)
+
+Reported by the user after pushing: Morphe Manager shows **0.2.0** as the latest even
+after re-adding the repo. Cause and findings:
+
+- **The repo has no release past v0.2.0.** GitHub tags are only `v0.1.0` and
+  `v0.2.0`; the v0.2.0 release carries a single asset `patches-0.2.0.mpp`.
+  Morphe Manager resolves a source from the repo's **latest release**
+  (`https://morphe.software/add-source?github=OWNER/REPO`), so 0.3.x/0.4.0 are
+  invisible no matter what the working tree says. Pushing code is not releasing.
+- **`patches-bundle.json` had a dead download_url** — it pointed at
+  `…/releases/download/v0.3.5/patches-0.3.5.mpp`, and that URL **404s** (v0.3.5 was
+  never published). The file advertised version 0.4.0 next to a broken link.
+- **`patches-list.json` was frozen at 0.2.0** and listed only 15 patches, missing
+  *Show profile IDs on names*, *Floating power button* and *No profile-visitor limit*.
+  Its own NOTE says semantic-release regenerates it — but there is **no release.yml
+  in this repo** (only `.github/build.yml.example`), so nothing ever did.
+
+Fixes applied:
+- `patches-bundle.json`: `download_url` → `…/download/v0.4.0/patches-0.4.0.mpp`,
+  refreshed `description` + `created_at`.
+- `patches-list.json`: regenerated with `./gradlew :patches:generatePatchesList` →
+  version **0.4.0**, **18 patches** (the 3 missing ones now present).
+- `patches/src/main/kotlin/util/PatchListGenerator.kt` (template code, now diverged
+  deliberately): it took `File("build/libs").listFiles { … }.first()` — with several
+  versions of the bundle in `build/libs` (which is normal locally) it generated the
+  list from an **arbitrary, stale** bundle. That is exactly what happened here: it
+  read `patches-0.2.0.mpp` and reported 0.2.0/15 patches. Now sorts by parsed
+  version and takes the newest. CI is unaffected (one artifact there), but local
+  `publish` runs would have shipped a wrong list.
+- README: added the **add-source link** and the note that only a published release
+  makes a version visible, plus table rows for the three newest patches.
+
+Release facts worth remembering:
+- Manager source URL: `https://morphe.software/add-source?github=madushas/pdb_patch`.
+- Release asset name must be `patches-<version>.mpp` (matches the template's
+  `downloadUrlTemplate` and the local `patches/build/libs/patches-<version>.mpp`).
+- The bundle's own version comes from `META-INF/MANIFEST.MF` inside the `.mpp`,
+  written from `gradle.properties` `version` — verified `0.4.0` in
+  `patches-0.4.0.mpp`.

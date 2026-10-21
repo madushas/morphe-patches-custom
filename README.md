@@ -5,6 +5,15 @@ Enneagram pen-pal social app.
 
 Verified target: **2.134.6** (versionCode **2694**).
 
+### Add it to Morphe Manager
+
+**[morphe.software/add-source?github=madushas/pdb_patch](https://morphe.software/add-source?github=madushas/pdb_patch)**
+
+Morphe Manager resolves the repository's **latest release**, so a version only
+appears here once it has been released with its `patches-<version>.mpp` asset.
+Bumping `gradle.properties`, `patches-bundle.json` and `patches-list.json` alone
+does not publish anything.
+
 This repository is a slimmed fork of the Morphe patch template
 ([`rushiranpise/morphe-patches`](https://github.com/rushiranpise/morphe-patches))
 that keeps **only** the Pdb patches plus the shared patch library, so the bundle
@@ -18,7 +27,10 @@ can be built and maintained on its own.
 | **Bypass PairIP license check** | ✅ | Replaces `com.pairip.application.Application` with `pdb.app.App`, drops `LicenseActivity` / `CHECK_LICENSE`, no-ops `LicenseClient`. |
 | **Remove ads** | ✅ | Disables the ad SDK init providers (GMS, AppLovin, Vungle, Yandex) and sets the app's own `isADLibDisabled`. |
 | **Allow standalone install (split-less APK)** | ✅ | The upstream base APK declares `requiredSplitTypes`, which blocks a standalone install; this removes it. |
-| **Pdb Extras feature menu** | ✅ | Adds a **“Pdb Extras”** row at the **top of Pdb's Settings screen** → full extras screen: 10 toggles + 5 hidden text overrides, power tools (any-preference writer, chat/visitor data, MMKV identity + IM-socket controls), and a one-tap button to Pdb's native dev screen. Premium and ad removal are patch-time and have no switch. |
+| **Pdb Extras feature menu** | ✅ | Adds a **“Pdb Extras”** row at the **top of Pdb's Settings screen** → a 5-tab screen (**Quick · Limits · Power · Data · Advanced**): everyday switches, one-tap actions, power tools (user inspector, profile/chat-by-id, hidden screens), database and storage reads, and the backend/identity overrides. Premium and ad removal are patch-time and have no switch. |
+| **Show profile IDs on names** | ✅ | Appends `#id` after every profile name the app renders — Soul cards, chat headers and lists — so you can act on a profile without opening it. Hot toggle in Quick. |
+| **Floating power button** | ✅ | Draggable ⚡ button on **every Pdb screen** with hot toggles, *copy my profile ID*, *copy last viewed profile* and a shortcut into Pdb Extras. Skips the splash, sign-in, story and Extras screens. |
+| **No profile-visitor limit** | ✅ | Lifts Pdb's client-side cap of 3 profile-visitor views per rolling hour (the “take a break” sheet) and adds a Limits tab with a counters view and a daily-counter reset. |
 | **Disable trackers** | ✅ | Disables Google Analytics measurement and Yandex AppMetrica telemetry; turns off Crashlytics/Analytics data collection via their official opt-out flags. Push notifications and sign-in keep working. |
 
 Optional shared patches (disabled by default): *Spoof app signature*,

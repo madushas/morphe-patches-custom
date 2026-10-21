@@ -14,14 +14,23 @@ import java.net.URLClassLoader
 import java.util.jar.Manifest
 
 fun main() {
-    val patchFiles = setOf(
-        File("build/libs/").listFiles { file ->
-            val fileName = file.name
-            !fileName.contains("javadoc") &&
-                    !fileName.contains("sources") &&
-                    fileName.endsWith(".mpp")
-        }!!.first()
-    )
+    // build/libs accumulates one bundle per version, so pick the *newest* version
+    // explicitly. Taking the first file the directory listing happens to return
+    // silently generates the patch list from a stale bundle.
+    fun versionKey(name: String): Int =
+        name.removePrefix("patches-").removeSuffix(".mpp")
+            .split('.')
+            .fold(0) { acc, part -> acc * 1000 + (part.takeWhile(Char::isDigit).toIntOrNull() ?: 0) }
+
+    val bundles = File("build/libs/").listFiles { file ->
+        val fileName = file.name
+        !fileName.contains("javadoc") &&
+                !fileName.contains("sources") &&
+                fileName.endsWith(".mpp")
+    }.orEmpty()
+    require(bundles.isNotEmpty()) { "no patch bundle (.mpp) found in build/libs" }
+
+    val patchFiles = setOf(bundles.maxByOrNull { versionKey(it.name) }!!)
     val loadedPatches = loadPatchesFromJar(patchFiles)
     val patchClassLoader = URLClassLoader(patchFiles.map { it.toURI().toURL() }.toTypedArray())
     val manifest = patchClassLoader.getResources("META-INF/MANIFEST.MF")
