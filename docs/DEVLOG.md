@@ -461,3 +461,10 @@ Release facts worth remembering:
 - The bundle's own version comes from `META-INF/MANIFEST.MF` inside the `.mpp`,
   written from `gradle.properties` `version` — verified `0.4.0` in
   `patches-0.4.0.mpp`.
+
+### `tools/pdbrelease` (added with the audit)
+Keeps the four version-bearing things in agreement and makes the release explicit:
+`--check` (verify only), `--prepare` (build + regenerate `patches-list.json` +
+sync `patches-bundle.json` + commit), `--publish` (also `git push` + `gh release
+create`). `--check` currently passes at 0.4.0 / 18 patches / v0.4.0 asset.
+`gh` is installed and authed as `madushas` (scopes: repo, read:packages, project).
