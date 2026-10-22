@@ -495,3 +495,31 @@ Note: `gh release create --target <sha>` fails with 422 (`target_commitish is in
 
 **Remaining manual step:** in Morphe Manager, refresh the source (or remove + re-add
 `https://morphe.software/add-source?github=madushas/pdb_patch`).
+
+## 2026-10-22 · Manager showed "0 patches" — dex-less bundle (v0.4.1)
+
+**Symptom:** After releasing v0.4.0, Manager updated the source to 0.4.0, listed Pdb as an app,
+but showed 0 patches.
+
+**Root cause:** Morphe Manager loads patches from DEX, not .class:
+`PatchBundle.Loader.validateDexEntries()` throws "missing dex entries" for a jar without
+classes.dex (source: MorpheApp/morphe-manager .../patcher/patch/PatchBundle.kt). Our .mpp was
+built with plain `:patches:build`. The gradle plugin (morphe-patches-gradle-plugin,
+PatchesPlugin.configurePublishing) has a separate **`buildAndroid`** task that runs D8
+(minApi 26) and merges classes.dex into the .mpp; only `publish` depends on buildAndroid,
+so CI releases are dexed but local `build` output is not. The app list still appeared because
+the Manager reads patches-list.json from the repo, not the bundle.
+Also: settings plugin needs GITHUB_ACTOR/GITHUB_TOKEN (or gpr.user/gpr.key in
+gradle.properties) or plugin application fails with bare IllegalArgumentException
+(SettingsPlugin.configureDependencies).
+
+**Fix (v0.4.1):**
+- tools/pdbrelease now runs `:patches:buildAndroid` and greps the .mpp for .dex before shipping.
+- Rebuilt, regenerated patches-list.json (0.4.1 / 18 patches), synced patches-bundle.json,
+  pushed 72ce3d6, released v0.4.1.
+- Verified: dex contains 49 patch classes incl. the 3 new patch names; chain
+  raw-main bundle (0.4.1) -> download_url 200 -> patches-list 0.4.1/18 -> latest release v0.4.1.
+- v0.4.0 release left on GitHub as the broken artifact (history); Manager will offer 0.4.1.
+
+**Cache note:** Manager skips re-download when version AND createdAt are unchanged; the
+fresh created_at in patches-bundle.json forces the refresh.
