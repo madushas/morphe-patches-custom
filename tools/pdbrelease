@@ -90,7 +90,6 @@ if ! unzip -l "$ASSET" | grep -q "\.dex"; then
   exit 1
 fi
 unzip -l "$ASSET" | grep "\.dex" | sed 's/^/  /'
-./gradlew :patches:generatePatchesList --no-daemon -q
 
 echo "==> Syncing patches-bundle.json"
 python3 - "$VERSION" "$URL" <<'PY'
