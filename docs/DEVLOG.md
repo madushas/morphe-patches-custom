@@ -468,3 +468,30 @@ Keeps the four version-bearing things in agreement and makes the release explici
 sync `patches-bundle.json` + commit), `--publish` (also `git push` + `gh release
 create`). `--check` currently passes at 0.4.0 / 18 patches / v0.4.0 asset.
 `gh` is installed and authed as `madushas` (scopes: repo, read:packages, project).
+
+## 2026-10-22 — Why Morphe Manager showed 0.2.0 / "metadata unavailable"
+
+**The push was fine.** `main` was already at `f1065f8`; commits `dfce18c` + `f1065f8` were on GitHub. The problem was that **no release existed past `v0.2.0`**.
+
+How the Manager actually resolves `github=OWNER/REPO` (verified in `MorpheApp/morphe-manager`
+source, `PatchBundleRepository.normalizeRemoteBundleUrl` + `MorpheAPI.rawPatchesBundleRequest`):
+
+1. `github.com/OWNER/REPO` → `https://raw.githubusercontent.com/OWNER/REPO/main/patches-bundle.json`
+   (branch defaults to `main`; no releases API involved).
+2. That JSON supplies `version` + `download_url` (DTO `PatchesReleaseInfo`, all 5 fields required).
+3. The Manager downloads `download_url` into `patches.jar`.
+4. If that download fails, the source stays in `PatchBundleSource.State.Missing`, and the UI shows
+   `sources_management_metadata_unavailable_hint` — the "metadata unavailable" notice. The version
+   on screen is whatever was last installed successfully (0.2.0).
+
+So with `download_url` pointing at a `v0.4.0` asset that did not exist, step 3 404'd → Missing.
+
+**Fix applied:** created release `v0.4.0` on `madushas/pdb_patch` with asset `patches-0.4.0.mpp`
+(922725 bytes, sha256 `0fa03ff3…a62093`), target `main`. Verified: latest release = v0.4.0, raw main
+JSON = 0.4.0 → same URL, asset returns HTTP 200.
+
+Note: `gh release create --target <sha>` fails with 422 (`target_commitish is invalid`); use
+`--target main`.
+
+**Remaining manual step:** in Morphe Manager, refresh the source (or remove + re-add
+`https://morphe.software/add-source?github=madushas/pdb_patch`).

@@ -73,7 +73,20 @@ if [[ "$MODE" == "--check" ]]; then
 fi
 
 echo "==> Building bundle"
-./gradlew :patches:build --no-daemon -q
+# NOTE: :patches:build alone produces a .mpp with NO classes.dex. The Manager's
+# PatchBundle.Loader.validateDexEntries() rejects dex-less bundles and the source
+# then shows "0 patches" (the app list still appears, because it is read from
+# patches-list.json in the repo, not from the bundle). The Gradle plugin's
+# buildAndroid task is what runs D8 and merges classes.dex into the .mpp;
+# its `publish` task depends on it, which is why official CI releases work.
+./gradlew :patches:buildAndroid --no-daemon -q
+
+echo "==> Verifying the bundle contains dex"
+if ! unzip -l "$ASSET" | grep -q "\.dex"; then
+  echo "  FAIL: no .dex entries in $ASSET — the Manager would show 0 patches" >&2
+  exit 1
+fi
+unzip -l "$ASSET" | grep "\.dex" | sed 's/^/  /'
 
 echo "==> Regenerating patches-list.json (picks the newest .mpp in build/libs)"
 ./gradlew :patches:generatePatchesList --no-daemon -q
