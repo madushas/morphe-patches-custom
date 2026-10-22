@@ -523,3 +523,49 @@ gradle.properties) or plugin application fails with bare IllegalArgumentExceptio
 
 **Cache note:** Manager skips re-download when version AND createdAt are unchanged; the
 fresh created_at in patches-bundle.json forces the refresh.
+
+## 2026-10-22 · v0.4.1/v0.4.2 assets were STILL dex-less — the generatePatchesList overwrite trap (v0.4.3)
+
+**Symptom after the v0.4.1 "fix":** Manager on the phone still showed 0 patches / 1 app.
+Reproduced on the emulator by installing Morphe Manager 1.35.0 (same version as the phone)
+and adding the source. logcat gave the exact error:
+
+    E Morphe Manager: Failed to load bundle Pdb Patches
+    E Morphe Manager: java.lang.IllegalStateException: Patch bundle is missing dex entries
+        at app.morphe.manager.patcher.patch.PatchBundle$Loader.validateDexEntries(SourceFile:121)
+
+**But the GitHub v0.4.1 asset had no dex** (922,726 B, no classes.dex), while the local
+post-buildAndroid file had it. Root cause was in tools/pdbrelease itself:
+
+    ./gradlew :patches:buildAndroid      # dex merged in
+    unzip -l ... | grep .dex             # verify PASSED
+    ./gradlew :patches:generatePatchesList   # <-- dependsOn(`build`) re-ran `jar`,
+                                             #     OVERWROTE the .mpp with a dex-less jar
+
+The dex verify ran BEFORE the list regeneration, and the regeneration silently undid the
+dexing. Both the v0.4.1 and (from a leftover duplicate call after my first edit) the v0.4.2
+uploads shipped the dex-less jar. Lesson: after ANY gradle task, the dex check must re-run;
+the asset must be verified byte-for-byte ON GITHUB, not just locally.
+
+**Intended release flow (pdbrelease --prepare now encodes this order, hard-fails otherwise):**
+
+1. `./gradlew :patches:generatePatchesList` FIRST (runs `build` → dex-less jar is fine here;
+   patches-list.json is regenerated from the newest .mpp in build/libs)
+2. `./gradlew :patches:buildAndroid` LAST — D8 (minApi 26) merges classes.dex into the .mpp
+3. Verify `.dex` in the .mpp AFTER the last gradle task (fails the release otherwise)
+4. Sync patches-bundle.json (version + download_url), verify all three files agree, commit
+5. `--publish`: `git push origin HEAD` + `gh release create v<version> <asset>`
+   (needs GITHUB_TOKEN in env; fails fast if missing)
+6. Download the released asset from GitHub and verify it has classes.dex — the upload is
+   the artifact that matters, not the local file
+
+**Verification on the emulator (Manager 1.35.0, same as the phone):** deleted the source,
+re-added github.com/madushas/pdb_patch, tapped Update → sheet now shows
+"Pdb Patches 0.4.3 · Patches 18 · Apps 1" (screenshot: work/eval/morphe-manager-source-043.png,
+vision-check PASS). Logcat shows no load error.
+
+**gh_token.txt:** removed from tools/pdbrelease — GITHUB_TOKEN now comes from the
+environment only (fail-fast in --publish). The file stays local + gitignored.
+
+**Broken releases left on GitHub:** v0.4.0, v0.4.1, v0.4.2 assets are dex-less; Manager
+never reads them once patches-bundle.json on main points at v0.4.3. Kept for history.

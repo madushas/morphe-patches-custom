@@ -26,9 +26,8 @@ MODE="${1:---check}"
 
 export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")"
 export GITHUB_ACTOR="${GITHUB_ACTOR:-madushas}"
-if [[ -z "${GITHUB_TOKEN:-}" && -f "$REPO/gh_token.txt" ]]; then
-  export GITHUB_TOKEN="$(tr -d '\r\n' < "$REPO/gh_token.txt")"
-fi
+# GITHUB_TOKEN comes from the environment (set by the user's shell profile).
+# The script fails fast below if it is missing, instead of reading token files.
 
 VERSION="$(grep -E '^version' gradle.properties | head -1 | cut -d= -f2 | tr -d ' ')"
 ASSET="$REPO/patches/build/libs/patches-$VERSION.mpp"
@@ -113,6 +112,10 @@ else
 fi
 
 if [[ "$MODE" == "--publish" ]]; then
+  if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+    echo "GITHUB_TOKEN is not set in the environment — required for gh release create" >&2
+    exit 1
+  fi
   echo "==> Pushing and creating the release"
   git push origin HEAD
   gh release create "v$VERSION" "$ASSET" \
