@@ -42,17 +42,13 @@ fi
 echo "==> Bundle: $MPP"
 
 echo "==> Patching $IN"
-ENABLE_ARGS=()
-if [[ "${MYD_MOCK_SIM:-0}" == "1" ]]; then
-  ENABLE_ARGS+=(-e "Mock SIM identifiers")
-fi
+# "Fix SIM identifier access" is default-on since v0.5.1 (see SimAccessFixPatch.kt).
 java -jar "$HOME/tools/opt/morphe-desktop.jar" patch \
   --patches="$MPP" \
   --bytecode-mode FULL \
   -o "$OUT" \
   -r "$WORK/patch-result.json" \
   -f \
-  "${ENABLE_ARGS[@]}" \
   "$IN"
 
 echo "==> Output: $OUT"
