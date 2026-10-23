@@ -4,10 +4,10 @@ patches {
     about {
         name = "Pdb & MyDialog Patches"
         description = "Patches for Pdb (pdb.app) and MyDialog (net.omobio.dialogsc): telemetry removal, security-check bypasses, ad removal, premium unlock and power-user features."
-        source = "https://github.com/madushas/morphe-patches"
+        source = "https://github.com/madushas/morphe-patches-custom"
         author = "madushas"
         contact = "https://github.com/madushas"
-        website = "https://morphe.software/add-source?github=madushas/morphe-patches"
+        website = "https://morphe.software/add-source?github=madushas/morphe-patches-custom"
         license = "GPLv3"
     }
 }
