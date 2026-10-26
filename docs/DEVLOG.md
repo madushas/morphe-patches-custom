@@ -708,3 +708,31 @@ Release: v0.5.4 published + GitHub asset verified (dexed, contains both new patc
 - Same-version redeploy per user: v0.5.5 release deleted + recreated with the
   fixed asset (dex-verified on GitHub: SoulHistoryActivity + openChat present).
 - Commit ab73dfa pushed.
+
+## 2026-10-27 — 0.5.5 fix #2: Chat links, timestamps, native styling (device feedback)
+- Chat buttons dead: the app's router (u8c.R, decoded via --single-class jadx)
+  parses the chat deep link as pdb://chat/{channelType}:{channelId} — it splits
+  pathSegments[1] on ":" (the ==1-split branch opens /chat/massaging with an
+  EMPTY channelType → invisible no-op). Underscore was wrong. → colon format.
+- "0 mins ago" everywhere: decorateName fires on EVERY list bind (explore rows,
+  chat headers, recomposition) → same-second bursts of "seen" records. Now an
+  upsert per id: re-see within 30 min only refreshes position, not time; likes
+  always update and never decay back to seen. lastSeen window widened 4s→30s.
+- Bad UI: rebuilt the screen from the app's own resources — content_bg_r8 cards
+  (PdbUi.card), gray_01/03 + main palette text, white bold text on a main-colored
+  20dp pill for Chat, per-row tap/long-press unchanged. Empty state is a card.
+- Same-version redeploy (user's policy): v0.5.5 deleted+recreated; GitHub asset
+  dex-verified (SoulHistoryActivity present). Commit e164fc9.
+
+## 2026-10-27 (post) — release-asset trap recurred and is now understood fully
+- Manual `gh release create` after `tools/pdbbuild` shipped a DEX-LESS asset again:
+  pdbbuild runs generatePatchesList (→ `build` → re-jar) AFTER any buildAndroid,
+  silently stripping classes.dex. The 0.4.1 lesson generalizes: **the ONLY valid
+  final build step before publishing is `:patches:buildAndroid`, and the asset on
+  GitHub must be byte-verified (dex present + extension.mpe contains new classes)
+  before claiming the release.** pdbrelease --publish enforces this; manual
+  `gh release create` does not. Fixed by running buildAndroid last + verifying the
+  downloaded asset (classes.dex present; extension.mpe is a raw DEX — "dex\n035" —
+  not a zip; verify with `strings`, not unzip).
+- v0.5.5 deleted + recreated with the correct 1,108,448-byte asset; verified:
+  classes.dex present, extension.mpe contains SoulHistoryActivity (6 hits).

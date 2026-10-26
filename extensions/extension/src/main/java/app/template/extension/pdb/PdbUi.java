@@ -272,7 +272,7 @@ public final class PdbUi {
                     + "  #" + r.id + "\n" + when);
                 tv.setTextSize(14);
                 tv.setPadding(pad + PdbUi.dp(activity, 8), pad, pad, pad);
-                tv.setOnClickListener(v -> PdbNav.openLink(activity, "pdb://u/" + r.id));
+                tv.setOnClickListener(v -> PdbNav.openLink(activity, "pdb://pdb.app/u/" + r.id));
                 tv.setOnLongClickListener(v -> {
                     PdbTools.copyToClipboard(activity, r.id);
                     PdbTools.toast(activity, "Copied " + r.id);

@@ -130,7 +130,7 @@ public final class SoulHistoryActivity extends Activity {
         row.addView(chat, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        row.setOnClickListener(v -> PdbNav.openLink(this, "pdb://u/" + r.id));
+        row.setOnClickListener(v -> PdbNav.openLink(this, "pdb://pdb.app/u/" + r.id));
         row.setOnLongClickListener(v -> {
             PdbTools.copyToClipboard(this, r.id);
             PdbTools.toast(this, "Copied " + r.id);

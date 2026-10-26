@@ -100,13 +100,14 @@ public final class PdbTools {
                 return;
             }
             String[] ch = PdbDatabase.channelForUser(activity, userId.trim());
-            // The app's own router (u8c.R, decoded from 2.135.1) parses the chat
-            // deep link as pdb://chat/{channelType}:{channelId} — it splits the
-            // second path segment on ":" (underscore opens a degenerate empty
-            // chat, which read as "the button does nothing").
+            // The app's router (u8c.R) reads the FIRST PATH SEGMENT, so the
+            // link needs a host: pdb://pdb.app/chat/{type}:{id}. Host-less
+            // forms (pdb://chat/...) put the route in the URI authority and
+            // fall through to the router's blank fallback — the "dead button".
+            // Verified on device: pdb://pdb.app/u/{id} opens the profile.
             String link = (ch != null)
-                ? "pdb://chat/" + ch[0] + ":" + ch[1]
-                : "pdb://u/" + userId.trim();
+                ? "pdb://pdb.app/chat/" + ch[0] + ":" + ch[1]
+                : "pdb://pdb.app/u/" + userId.trim();
             PdbNav.openLink(activity, link);
         } catch (Throwable t) {
             toast(activity, "Chat failed: " + t);
