@@ -55,6 +55,18 @@ public final class PdbUi {
      * and must never throw (all failure modes return the input unchanged).
      */
     public static String decorateName(String name, String id) {
+        return decorateName(name, id, null);
+    }
+
+    /**
+     * Decorates a profile name with the numeric id and (when readable) status
+     * badges next to the username, as compact glyphs:
+     * U+2713 verified (manual/auto/face), U+2605 pro (real proStatus, not the
+     * mock), U+25C6 moderator. The badge source is the profile object itself;
+     * everything is reflective and try/caught per field, so an obfuscation
+     * change degrades to the plain id decoration instead of breaking the app.
+     */
+    public static String decorateName(String name, String id, Object profile) {
         if (name != null && id != null && id.length() > 0) {
             LAST_PROFILE_ID = id;
             LAST_PROFILE_NAME = name;
@@ -64,7 +76,58 @@ public final class PdbUi {
         // Idempotent: callers may render an already-decorated name (recomposition,
         // cached models), never stack a second chip.
         if (name.endsWith("#" + id)) return name;
-        return name + " #" + id;
+        return name + badges(profile) + " #" + id;
+    }
+
+    /** Reflective badge suffix; "" when nothing is readable. */
+    private static String badges(Object profile) {
+        if (profile == null) return "";
+        StringBuilder sb = new StringBuilder();
+        try {
+            if (boolField(profile, "manualVerified") || boolField(profile, "autoVerified")
+                || boolField(profile, "faceVerified")) {
+                sb.append(" \u2713");
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            Object ps = field(profile, "proStatus");
+            if (ps != null) {
+                Object v = ps.getClass().getMethod("getIsPro").invoke(ps);
+                if (Boolean.TRUE.equals(v)) sb.append(" \u2605");
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (boolField(profile, "_isMod") || boolField(profile, "isMod")) {
+                sb.append(" \u25C6");
+            }
+        } catch (Throwable ignored) {
+        }
+        return sb.toString();
+    }
+
+    private static Object field(Object obj, String name) throws Exception {
+        Class<?> c = obj.getClass();
+        while (c != null) {
+            try {
+                java.lang.reflect.Field f = c.getDeclaredField(name);
+                f.setAccessible(true);
+                return f.get(obj);
+            } catch (NoSuchFieldException ignored) {
+                c = c.getSuperclass();
+            }
+        }
+        return null;
+    }
+
+    private static boolean boolField(Object obj, String name) {
+        try {
+            Object v = field(obj, name);
+            return Boolean.TRUE.equals(v);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     /* ── resource lookups ── */

@@ -4,6 +4,7 @@ import app.template.extension.BuildConfig;
 
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.widget.Toast;
@@ -40,6 +41,43 @@ public final class PdbTools {
         try {
             Toast.makeText(ctx.getApplicationContext(), message, Toast.LENGTH_LONG).show();
         } catch (Throwable ignored) {
+        }
+    }
+
+    /**
+     * Hard-restarts the Pdb app: relaunches the launcher intent fresh, then kills
+     * this process. Used by switches that cannot apply live (decoration flags
+     * re-read at view bind time, auth/session behaviour, app-icon swaps).
+     */
+    public static void restartApp(Activity activity) {
+        try {
+            android.content.Intent i = activity.getPackageManager()
+                .getLaunchIntentForPackage(activity.getPackageName());
+            if (i != null) {
+                i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                    | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                activity.startActivity(i);
+            }
+        } catch (Throwable ignored) {
+        }
+        android.os.Process.killProcess(android.os.Process.myPid());
+    }
+
+    /**
+     * Asks before restarting: "takes effect after restarting the app — restart
+     * now?". [Restart now] relaunches Pdb; [Later] keeps the value pending.
+     */
+    public static void restartDialog(Activity activity) {
+        try {
+            new android.app.AlertDialog.Builder(activity)
+                .setTitle("Morphe Extras")
+                .setMessage("This change takes effect after restarting the app.\n\n"
+                    + "Tap Restart now to apply it immediately.")
+                .setPositiveButton("Restart now", (d, w) -> restartApp(activity))
+                .setNegativeButton("Later", null)
+                .show();
+        } catch (Throwable t) {
+            toast(activity, "Takes effect after restarting the app");
         }
     }
 

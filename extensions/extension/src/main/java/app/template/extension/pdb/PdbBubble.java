@@ -175,7 +175,7 @@ public final class PdbBubble {
             PopupMenu menu = new PopupMenu(activity, anchor);
             menu.getMenu().add(0, 1, 0, idsLabel(sp));
             menu.getMenu().add(0, 2, 1, receiptsLabel(sp));
-            menu.getMenu().add(0, 3, 2, pauseLabel(sp));
+            menu.getMenu().add(0, 3, 2, "Chat directly");
             menu.getMenu().add(0, 4, 3, "Copy my profile ID");
             menu.getMenu().add(0, 5, 4, lastProfileLabel());
             menu.getMenu().add(0, 6, 5, "Open Pdb Extras");
@@ -189,7 +189,7 @@ public final class PdbBubble {
                             e.putBoolean(PdbSettings.IDS_EVERYWHERE, on);
                             e.apply();
                             PdbUi.IDS_EVERYWHERE = on; // hot
-                            toast(activity, "Profile IDs " + (on ? "ON (next refresh)" : "OFF"));
+                            PdbTools.restartDialog(activity); // decoration rebinds on restart
                             break;
                         }
                         case 2: {
@@ -201,11 +201,7 @@ public final class PdbBubble {
                             break;
                         }
                         case 3: {
-                            boolean on = !PdbSettings.getBool(sp, PdbSettings.GLOBAL_PAUSE, false);
-                            e.putBoolean(PdbSettings.GLOBAL_PAUSE, on);
-                            e.apply();
-                            toast(activity, on ? "Morphe paused (next launch)"
-                                : "Morphe resumed (next launch)");
+                            chatDirectly(activity);
                             break;
                         }
                         case 4: {
@@ -255,9 +251,33 @@ public final class PdbBubble {
         return (on ? "\u2713 " : "") + "Disable read receipts";
     }
 
-    private static String pauseLabel(SharedPreferences sp) {
-        boolean on = PdbSettings.getBool(sp, PdbSettings.GLOBAL_PAUSE, false);
-        return (on ? "\u2713 " : "") + "Pause Morphe";
+    /**
+     * "Chat directly" — opens a 1:1 chat with the profile the bubble last saw
+     * ({@link PdbUi#LAST_PROFILE_ID}). Resolution order:
+     * <ol>
+     *     <li>the app's local IM database ({@code channels} table) maps the
+     *     user to an existing channel, opened through the app's own deep link
+     *     {@code pdb://chat/{type}_{id}};</li>
+     *     <li>no channel yet &rarr; the profile deep link {@code pdb://u/{id}}
+     *     (the user taps Chat there; creating a channel needs a server call we
+     *     deliberately do not fake from injected code).</li>
+     * </ol>
+     */
+    private static void chatDirectly(Activity activity) {
+        try {
+            String id = PdbUi.LAST_PROFILE_ID;
+            if (id == null || id.trim().isEmpty()) {
+                toast(activity, "Open a profile first, then tap the bubble");
+                return;
+            }
+            String[] ch = PdbDatabase.channelForUser(activity, id.trim());
+            String link = (ch != null)
+                ? "pdb://chat/" + ch[0] + "_" + ch[1]
+                : "pdb://u/" + id.trim();
+            PdbNav.openLink(activity, link);
+        } catch (Throwable t) {
+            toast(activity, "Chat directly failed: " + t);
+        }
     }
 
     /** The signed-in user id from the MMKV auth session (kept shape: JSON). */
