@@ -161,29 +161,38 @@ public final class PdbUi {
         try {
             if (id == null || id.trim().isEmpty()) return;
             if (name == null || name.isEmpty()) name = "";
-            if ("seen".equals(action) && lastSeenId != null && lastSeenId.equals(id)
-                && System.currentTimeMillis() - lastSeenTs < 4000) {
-                return; // re-bind of the same card within seconds — not a new view
+            id = id.trim();
+            boolean like = "like".equals(action);
+            long now = System.currentTimeMillis();
+            if (!like && lastSeenId != null && lastSeenId.equals(id)
+                && now - lastSeenTs < 30000) {
+                lastSeenTs = now; // scroll churn — refresh the window only
+                return;
             }
+            lastSeenId = id;
+            lastSeenTs = now;
+
             org.json.JSONArray arr = readHistory();
             org.json.JSONArray next = new org.json.JSONArray();
-            next.put(new org.json.JSONObject()
-                .put("a", action).put("id", id.trim())
-                .put("n", name).put("t", System.currentTimeMillis()));
-            int liked = -1;
-            if ("like".equals(action)) {
-                for (int i = 0; i < arr.length() && liked < 0; i++) {
-                    org.json.JSONObject o = arr.optJSONObject(i);
-                    if (o != null && id.trim().equals(o.optString("id"))
-                        && "seen".equals(o.optString("a"))) liked = i;
-                }
+            int replaced = -1;
+            for (int i = 0; i < arr.length() && replaced < 0; i++) {
+                org.json.JSONObject o = arr.optJSONObject(i);
+                if (o != null && id.equals(o.optString("id"))) replaced = i;
             }
             for (int i = 0; i < arr.length() && next.length() < HISTORY_MAX; i++) {
-                if (i == liked) continue; // replaced by the like row
+                if (i == replaced) continue;
                 next.put(arr.get(i));
             }
-            lastSeenId = id.trim();
-            lastSeenTs = System.currentTimeMillis();
+            org.json.JSONObject row = new org.json.JSONObject()
+                .put("a", like ? "like" : "seen").put("id", id)
+                .put("n", name).put("t", now);
+            if (replaced >= 0) {
+                org.json.JSONObject old = arr.optJSONObject(replaced);
+                if (old != null && "like".equals(old.optString("a")) && !like) {
+                    row.put("a", "like"); // a like never decays back to seen
+                }
+            }
+            next.put(row);
             PdbMmkv.putString(HISTORY_KEY, next.toString());
         } catch (Throwable ignored) {
         }

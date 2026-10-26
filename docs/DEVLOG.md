@@ -695,3 +695,16 @@ Release: v0.5.4 published + GitHub asset verified (dexed, contains both new patc
 - Verified: all 12 patches apply on 2.135.1; smali of the patched APK shows the
   injected invoke-static/range at lm6.m entry; released v0.5.5 + GitHub asset
   dex-verified.
+
+## 2026-10-26 (later) — 0.5.5 fix: native Soul history screen with per-entry Chat
+- User feedback: bubble "Chat directly" on the CURRENT profile is pointless (the
+  app already shows Chat there) — the value is chatting with PAST souls.
+- NEW SoulHistoryActivity (native screen, registered non-exported in the merged
+  manifest by FeatureMenuPatch alongside PdbExtrasActivity): rows = 🧡-mark +
+  name + #id + relative time; tap row → pdb://u/{id}; Chat button →
+  PdbTools.openChat(id) (channel_members ⋈ channels → pdb://chat/{type}_{id},
+  else profile fallback); long-press → copy id. Bubble "Chat directly" removed;
+  bubble + Extras "Soul history" now open the native screen.
+- Same-version redeploy per user: v0.5.5 release deleted + recreated with the
+  fixed asset (dex-verified on GitHub: SoulHistoryActivity + openChat present).
+- Commit ab73dfa pushed.

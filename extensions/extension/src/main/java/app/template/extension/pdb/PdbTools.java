@@ -100,8 +100,12 @@ public final class PdbTools {
                 return;
             }
             String[] ch = PdbDatabase.channelForUser(activity, userId.trim());
+            // The app's own router (u8c.R, decoded from 2.135.1) parses the chat
+            // deep link as pdb://chat/{channelType}:{channelId} — it splits the
+            // second path segment on ":" (underscore opens a degenerate empty
+            // chat, which read as "the button does nothing").
             String link = (ch != null)
-                ? "pdb://chat/" + ch[0] + "_" + ch[1]
+                ? "pdb://chat/" + ch[0] + ":" + ch[1]
                 : "pdb://u/" + userId.trim();
             PdbNav.openLink(activity, link);
         } catch (Throwable t) {
