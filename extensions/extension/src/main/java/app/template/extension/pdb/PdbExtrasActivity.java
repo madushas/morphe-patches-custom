@@ -78,8 +78,15 @@ public final class PdbExtrasActivity extends Activity {
 
         section("Power");
         LinearLayout power = newCard();
-        power.addView(row("Soul history \u2014 who you saw & liked", v ->
-            PdbUi.showSoulHistory(this)));
+        power.addView(row("Soul history \u2014 who you saw & liked", v -> {
+            try {
+                android.content.Intent i = new android.content.Intent();
+                i.setClassName(this, "app.template.extension.pdb.SoulHistoryActivity");
+                startActivity(i);
+            } catch (Throwable t) {
+                PdbTools.toast(this, "Soul history: " + t);
+            }
+        }));
 
         section("Always on in this build");
         LinearLayout facts = newCard();

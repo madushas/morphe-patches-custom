@@ -175,11 +175,10 @@ public final class PdbBubble {
             PopupMenu menu = new PopupMenu(activity, anchor);
             menu.getMenu().add(0, 1, 0, idsLabel(sp));
             menu.getMenu().add(0, 2, 1, receiptsLabel(sp));
-            menu.getMenu().add(0, 3, 2, "Chat directly");
-            menu.getMenu().add(0, 4, 3, "Soul history");
-            menu.getMenu().add(0, 5, 4, "Copy my profile ID");
-            menu.getMenu().add(0, 6, 5, lastProfileLabel());
-            menu.getMenu().add(0, 7, 6, "Open Pdb Extras");
+            menu.getMenu().add(0, 3, 2, "Soul history");
+            menu.getMenu().add(0, 4, 3, "Copy my profile ID");
+            menu.getMenu().add(0, 5, 4, lastProfileLabel());
+            menu.getMenu().add(0, 6, 5, "Open Pdb Extras");
 
             menu.setOnMenuItemClickListener(item -> {
                 try {
@@ -202,14 +201,10 @@ public final class PdbBubble {
                             break;
                         }
                         case 3: {
-                            chatDirectly(activity);
+                            openHistory(activity);
                             break;
                         }
                         case 4: {
-                            PdbUi.showSoulHistory(activity);
-                            break;
-                        }
-                        case 5: {
                             String id = myId();
                             if (id == null) {
                                 toast(activity, "Not signed in / no session found");
@@ -219,7 +214,7 @@ public final class PdbBubble {
                             }
                             break;
                         }
-                        case 6: {
+                        case 5: {
                             String lastId = PdbUi.LAST_PROFILE_ID;
                             if (lastId == null) {
                                 toast(activity, "No profile seen yet this session");
@@ -229,7 +224,7 @@ public final class PdbBubble {
                             }
                             break;
                         }
-                        case 7: {
+                        case 6: {
                             android.content.Intent i = new android.content.Intent();
                             i.setClassName(activity,
                                 "app.template.extension.pdb.PdbExtrasActivity");
@@ -246,6 +241,17 @@ public final class PdbBubble {
         }
     }
 
+    /** Opens the native Soul history screen (per-entry chat buttons). */
+    private static void openHistory(Activity activity) {
+        try {
+            android.content.Intent i = new android.content.Intent();
+            i.setClassName(activity, "app.template.extension.pdb.SoulHistoryActivity");
+            activity.startActivity(i);
+        } catch (Throwable t) {
+            toast(activity, "Soul history: " + t);
+        }
+    }
+
     private static String idsLabel(SharedPreferences sp) {
         boolean on = PdbSettings.getBool(sp, PdbSettings.IDS_EVERYWHERE, true);
         return (on ? "\u2713 " : "") + "Show profile IDs";
@@ -256,34 +262,6 @@ public final class PdbBubble {
         return (on ? "\u2713 " : "") + "Disable read receipts";
     }
 
-    /**
-     * "Chat directly" — opens a 1:1 chat with the profile the bubble last saw
-     * ({@link PdbUi#LAST_PROFILE_ID}). Resolution order:
-     * <ol>
-     *     <li>the app's local IM database ({@code channels} table) maps the
-     *     user to an existing channel, opened through the app's own deep link
-     *     {@code pdb://chat/{type}_{id}};</li>
-     *     <li>no channel yet &rarr; the profile deep link {@code pdb://u/{id}}
-     *     (the user taps Chat there; creating a channel needs a server call we
-     *     deliberately do not fake from injected code).</li>
-     * </ol>
-     */
-    private static void chatDirectly(Activity activity) {
-        try {
-            String id = PdbUi.LAST_PROFILE_ID;
-            if (id == null || id.trim().isEmpty()) {
-                toast(activity, "Open a profile first, then tap the bubble");
-                return;
-            }
-            String[] ch = PdbDatabase.channelForUser(activity, id.trim());
-            String link = (ch != null)
-                ? "pdb://chat/" + ch[0] + "_" + ch[1]
-                : "pdb://u/" + id.trim();
-            PdbNav.openLink(activity, link);
-        } catch (Throwable t) {
-            toast(activity, "Chat directly failed: " + t);
-        }
-    }
 
     /** The signed-in user id from the MMKV auth session (kept shape: JSON). */
     private static String myId() {

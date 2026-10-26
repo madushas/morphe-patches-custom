@@ -14,6 +14,7 @@ import org.w3c.dom.Element
 private const val EXT_PREFIX = "Lapp/template/extension/pdb/"
 private const val INIT_PROVIDER = "app.template.extension.pdb.PdbInitProvider"
 private const val EXTRAS_ACTIVITY = "app.template.extension.pdb.PdbExtrasActivity"
+private const val HISTORY_ACTIVITY = "app.template.extension.pdb.SoulHistoryActivity"
 private const val SETTINGS_LAYOUT = "res/layout/fragment_app_setting.xml"
 private const val ENTRY_ID = "morphe_extras_entry"
 
@@ -125,6 +126,19 @@ val pdbExtrasResourcePatch = resourcePatch(
                         // Not exported: Pdb Extras is opened only from the app's
                         // own Settings menu. Temporarily set to "true" when a
                         // signed-out emulator needs `adb shell am start`.
+                        "android:exported" to "false",
+                    ),
+                )
+            }
+            val historyPresent = (0 until activities.length).any {
+                (activities.item(it) as? Element)
+                    ?.attributes?.getNamedItem("android:name")?.nodeValue == HISTORY_ACTIVITY
+            }
+            if (!historyPresent) {
+                application.appendChild(
+                    doc.el(
+                        "activity",
+                        "android:name" to HISTORY_ACTIVITY,
                         "android:exported" to "false",
                     ),
                 )

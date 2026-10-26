@@ -81,6 +81,34 @@ public final class PdbTools {
         }
     }
 
+    /**
+     * Opens (or falls back to) a 1:1 chat with a profile id — the "chat with a
+     * past soul" action. Resolution order:
+     * <ol>
+     *     <li>the app's local IM database ({@code channel_members} ⋈
+     *     {@code channels}) maps the user to an existing channel, opened
+     *     through the app's own deep link {@code pdb://chat/{type}_{id}};</li>
+     *     <li>no channel yet &rarr; the profile deep link {@code pdb://u/{id}}
+     *     (the user taps Chat there; creating a channel needs a server call we
+     *     deliberately do not fake from injected code).</li>
+     * </ol>
+     */
+    public static void openChat(Activity activity, String userId) {
+        try {
+            if (userId == null || userId.trim().isEmpty()) {
+                toast(activity, "No profile id");
+                return;
+            }
+            String[] ch = PdbDatabase.channelForUser(activity, userId.trim());
+            String link = (ch != null)
+                ? "pdb://chat/" + ch[0] + "_" + ch[1]
+                : "pdb://u/" + userId.trim();
+            PdbNav.openLink(activity, link);
+        } catch (Throwable t) {
+            toast(activity, "Chat failed: " + t);
+        }
+    }
+
     public static void copyToClipboard(Context ctx, String text) {
         try {
             ClipboardManager cm = (ClipboardManager) ctx.getSystemService(Context.CLIPBOARD_SERVICE);

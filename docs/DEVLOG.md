@@ -666,3 +666,32 @@ MyDialog (0.5.4, verified live on the emulator):
 - Verified on emulator: 0 fab nodes in dump; menu footer shows patch id next to
   the device id (value redacted).
 Release: v0.5.4 published + GitHub asset verified (dexed, contains both new patches).
+
+## 2026-10-26 — v0.5.5: Soul history (local), honest "Mock Pro", like-hook register lesson
+- User confirmed: most pro features are SERVER gates; renamed "Unlock Pro" →
+  "Mock Pro (client-side)" everywhere (patch name/description, README, docs/pdb.md,
+  patches-bundle.json) with explicit "server-validated entitlements still refuse".
+- Soul rewind/history: gate faf.W() (mockIsProUser pref first) is ALREADY covered
+  by the pro patch — missing rewind on device = stale 2.134.6 bundle; on 2.135.1
+  verify the Rewind button on the Soul header.
+- The "20 soul limit" (likes beyond ~20 don't list) = the server's short feed
+  window; answers it with a LOCAL feature instead of fighting the server:
+  NEW "Soul history" patch: fingerprint = ordered string filters
+  [string("irlTotalLiked"), string("vote")] → the soul-feed like method
+  (lm6.m(Lu4b;Lejd;)V in 2.135.1); injects
+  invoke-static/range {p1 .. p1} → PdbUi.recordSoulLike(card).
+  PdbUi now keeps a capped-200 MMKV history ("morphe_soul_history") of every
+  decorated profile (decorateName → recordSoul("seen")) + like marks
+  (recordSoulLike reflects getId/name off the card's user field);
+  PdbUi.showSoulHistory(Activity) = dialog (tap → pdb://u/{id}, long-press → copy).
+  Bubble menu: Chat directly / Soul history / Copy my ID / Copy last viewed / Extras.
+  Extras page gained a "Power" section with the same entry.
+- REGISTER LESSON (cost 4 builds): the inline smali compiler SILENTLY DROPS the
+  dummy method (→ "Collection is empty") when a plain invoke-static references
+  pN mapped to a register > v15 (this method: .registers 31). Use
+  invoke-static/range {pN .. pN} whenever the target method's register count
+  exceeds ~18. Also: single-literal "vote" fingerprints are ambiguous —
+  w76.i (Compose lambda) also contains it; ordered two-literal filters fix it.
+- Verified: all 12 patches apply on 2.135.1; smali of the patched APK shows the
+  injected invoke-static/range at lm6.m entry; released v0.5.5 + GitHub asset
+  dex-verified.
