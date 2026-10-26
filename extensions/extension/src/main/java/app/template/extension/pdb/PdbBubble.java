@@ -176,9 +176,10 @@ public final class PdbBubble {
             menu.getMenu().add(0, 1, 0, idsLabel(sp));
             menu.getMenu().add(0, 2, 1, receiptsLabel(sp));
             menu.getMenu().add(0, 3, 2, "Chat directly");
-            menu.getMenu().add(0, 4, 3, "Copy my profile ID");
-            menu.getMenu().add(0, 5, 4, lastProfileLabel());
-            menu.getMenu().add(0, 6, 5, "Open Pdb Extras");
+            menu.getMenu().add(0, 4, 3, "Soul history");
+            menu.getMenu().add(0, 5, 4, "Copy my profile ID");
+            menu.getMenu().add(0, 6, 5, lastProfileLabel());
+            menu.getMenu().add(0, 7, 6, "Open Pdb Extras");
 
             menu.setOnMenuItemClickListener(item -> {
                 try {
@@ -205,6 +206,10 @@ public final class PdbBubble {
                             break;
                         }
                         case 4: {
+                            PdbUi.showSoulHistory(activity);
+                            break;
+                        }
+                        case 5: {
                             String id = myId();
                             if (id == null) {
                                 toast(activity, "Not signed in / no session found");
@@ -214,7 +219,7 @@ public final class PdbBubble {
                             }
                             break;
                         }
-                        case 5: {
+                        case 6: {
                             String lastId = PdbUi.LAST_PROFILE_ID;
                             if (lastId == null) {
                                 toast(activity, "No profile seen yet this session");
@@ -224,7 +229,7 @@ public final class PdbBubble {
                             }
                             break;
                         }
-                        case 6: {
+                        case 7: {
                             android.content.Intent i = new android.content.Intent();
                             i.setClassName(activity,
                                 "app.template.extension.pdb.PdbExtrasActivity");

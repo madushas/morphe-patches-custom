@@ -1,5 +1,6 @@
 package app.template.extension.pdb;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.drawable.GradientDrawable;
@@ -70,6 +71,7 @@ public final class PdbUi {
         if (name != null && id != null && id.length() > 0) {
             LAST_PROFILE_ID = id;
             LAST_PROFILE_NAME = name;
+            recordSoul("seen", id, name);
         }
         if (!IDS_EVERYWHERE || name == null || id == null || id.length() == 0) return name;
         if (name.length() == 0) return name;
@@ -127,6 +129,157 @@ public final class PdbUi {
             return Boolean.TRUE.equals(v);
         } catch (Throwable ignored) {
             return false;
+        }
+    }
+
+    /* ── soul history ──
+     *
+     * Every profile the app renders (soul cards, lists, chat headers) crosses
+     * decorateName, so decorations double as a local history of who you saw.
+     * Likes are marked by the SoulLikeHook patch (fires when the app queues
+     * its vote for a card). Everything persists in the app's own MMKV store
+     * under "morphe_soul_history" as a JSON array, newest first, capped at
+     * HISTORY_MAX — fully local, invisible to the server, and unaffected by
+     * the server's short feed window (the "20 soul limit").
+     */
+
+    private static final int HISTORY_MAX = 200;
+    private static final String HISTORY_KEY = "morphe_soul_history";
+
+    /** A history row: action, id, name, epoch-ms. action: seen | like. */
+    public static final class SoulRow {
+        public final String action, id, name;
+        public final long ts;
+
+        SoulRow(String action, String id, String name, long ts) {
+            this.action = action; this.id = id; this.name = name; this.ts = ts;
+        }
+    }
+
+    /** Records one history row; called from decorateName and the like hook. */
+    public static void recordSoul(String action, String id, String name) {
+        try {
+            if (id == null || id.trim().isEmpty()) return;
+            if (name == null || name.isEmpty()) name = "";
+            if ("seen".equals(action) && lastSeenId != null && lastSeenId.equals(id)
+                && System.currentTimeMillis() - lastSeenTs < 4000) {
+                return; // re-bind of the same card within seconds — not a new view
+            }
+            org.json.JSONArray arr = readHistory();
+            org.json.JSONArray next = new org.json.JSONArray();
+            next.put(new org.json.JSONObject()
+                .put("a", action).put("id", id.trim())
+                .put("n", name).put("t", System.currentTimeMillis()));
+            int liked = -1;
+            if ("like".equals(action)) {
+                for (int i = 0; i < arr.length() && liked < 0; i++) {
+                    org.json.JSONObject o = arr.optJSONObject(i);
+                    if (o != null && id.trim().equals(o.optString("id"))
+                        && "seen".equals(o.optString("a"))) liked = i;
+                }
+            }
+            for (int i = 0; i < arr.length() && next.length() < HISTORY_MAX; i++) {
+                if (i == liked) continue; // replaced by the like row
+                next.put(arr.get(i));
+            }
+            lastSeenId = id.trim();
+            lastSeenTs = System.currentTimeMillis();
+            PdbMmkv.putString(HISTORY_KEY, next.toString());
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static String lastSeenId;
+    private static long lastSeenTs;
+
+    /** Called by the SoulLikeHook patch at the app's like path (card object). */
+    public static void recordSoulLike(Object card) {
+        try {
+            if (card == null) return;
+            String id = null, name = null;
+            for (java.lang.reflect.Field f : card.getClass().getDeclaredFields()) {
+                f.setAccessible(true);
+                Object v;
+                try { v = f.get(card); } catch (Throwable ignored) { continue; }
+                if (v == null || v.getClass().isPrimitive()
+                    || v instanceof String || v instanceof Number) continue;
+                String vid = null, vname = null;
+                try { vid = (String) v.getClass().getMethod("getId").invoke(v); }
+                catch (Throwable ignored) { continue; }
+                try {
+                    vname = (String) v.getClass().getMethod("name").invoke(v);
+                } catch (Throwable ignored) {
+                    try { vname = (String) v.getClass().getMethod("getUsername").invoke(v); }
+                    catch (Throwable ignored2) { }
+                }
+                if (vid != null && vname != null) { id = vid; name = vname; break; }
+                if (id == null) { id = vid; }
+            }
+            if (id != null) recordSoul("like", id, name);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static org.json.JSONArray readHistory() {
+        try {
+            String raw = PdbMmkv.getString(HISTORY_KEY);
+            if (raw != null && raw.length() > 1) return new org.json.JSONArray(raw);
+        } catch (Throwable ignored) {
+        }
+        return new org.json.JSONArray();
+    }
+
+    /** History rows, newest first. */
+    public static java.util.List<SoulRow> soulHistory() {
+        java.util.List<SoulRow> out = new java.util.ArrayList<>();
+        org.json.JSONArray arr = readHistory();
+        for (int i = 0; i < arr.length(); i++) {
+            org.json.JSONObject o = arr.optJSONObject(i);
+            if (o == null) continue;
+            out.add(new SoulRow(o.optString("a", "seen"),
+                o.optString("id"), o.optString("n"), o.optLong("t")));
+        }
+        return out;
+    }
+
+    /** "Soul history" dialog: recent profiles, tap to open, long-press to copy. */
+    public static void showSoulHistory(final Activity activity) {
+        try {
+            java.util.List<SoulRow> rows = soulHistory();
+            if (rows.isEmpty()) {
+                PdbTools.toast(activity, "No soul history yet — swipe the Soul feed");
+                return;
+            }
+            LinearLayout box = new LinearLayout(activity);
+            box.setOrientation(LinearLayout.VERTICAL);
+            int pad = PdbUi.dp(activity, 4);
+            int shown = 0;
+            for (final SoulRow r : rows) {
+                if (shown++ >= 60) break;
+                TextView tv = new TextView(activity);
+                String when = android.text.format.DateUtils.getRelativeTimeSpanString(
+                    r.ts).toString();
+                tv.setText((r.action.equals("like") ? "\uD83E\uDDE1 " : "") + r.name
+                    + "  #" + r.id + "\n" + when);
+                tv.setTextSize(14);
+                tv.setPadding(pad + PdbUi.dp(activity, 8), pad, pad, pad);
+                tv.setOnClickListener(v -> PdbNav.openLink(activity, "pdb://u/" + r.id));
+                tv.setOnLongClickListener(v -> {
+                    PdbTools.copyToClipboard(activity, r.id);
+                    PdbTools.toast(activity, "Copied " + r.id);
+                    return true;
+                });
+                box.addView(tv);
+            }
+            android.widget.ScrollView sv = new android.widget.ScrollView(activity);
+            sv.addView(box);
+            new android.app.AlertDialog.Builder(activity)
+                .setTitle("Soul history (local, newest first)")
+                .setView(sv)
+                .setPositiveButton("Close", null)
+                .show();
+        } catch (Throwable t) {
+            PdbTools.toast(activity, "Soul history: " + t);
         }
     }
 

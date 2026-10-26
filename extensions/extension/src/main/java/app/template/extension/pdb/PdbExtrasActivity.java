@@ -76,12 +76,18 @@ public final class PdbExtrasActivity extends Activity {
             card.addView(switchRow(row[0], row[1]));
         }
 
+        section("Power");
+        LinearLayout power = newCard();
+        power.addView(row("Soul history \u2014 who you saw & liked", v ->
+            PdbUi.showSoulHistory(this)));
+
         section("Always on in this build");
         LinearLayout facts = newCard();
         note(facts, "Ad-free \u00b7 telemetry off (AppsFlyer, CleverTap, Facebook, "
-            + "Firebase Analytics/Perf) \u00b7 Pro unlocked \u00b7 Soul rewind & "
-            + "history unlocked \u00b7 no profile-visitor limit \u00b7 profile IDs "
-            + "with badges. These are part of the patch and have no switch.");
+            + "Firebase Analytics/Perf) \u00b7 mock pro flags (client-side; "
+            + "server-gated premium stays server-gated) \u00b7 no profile-visitor "
+            + "limit \u00b7 profile IDs with badges \u00b7 local Soul history. "
+            + "These are part of the patch and have no switch.");
 
         LinearLayout close = newCard();
         close.addView(row("Close", v -> finish()));

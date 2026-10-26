@@ -631,3 +631,38 @@ ad-tech names (ironsource/applovin_max/appodeal) present in the bundle with no a
 unit IDs (dormant), GMA SDK bundled with AD_MANAGER_APP=true. NOT found: no security
 stack exfiltration (checks are local-only), no contact/SMS upload paths, no clipboard
 snooping, no accessibility/device-admin abuse. sqlcipher bundled (encrypted store).
+
+## 2026-10-26 — v0.5.4: PDB 2.135.1 retarget + simplification + Chat directly; MyDialog FAB/footer
+PDB (2.134.6 → 2.135.1, APKPure Pdb_2.135.1_APKPure.xapk, verified Play-signed:
+signer 1343aefb… + Google SourceStamp; base.apk extracted from the xapk):
+- BaseActivity → obfuscated ez0 (31 pdb.app activities extend it) — HomeBubblePatch
+  re-anchored; all other fingerprints are string-based and survived the R8 shift.
+- ALL 11 PDB patches apply on 2.135.1 (verify: pdbbuild output).
+- Soul rewind/history: gate = faf.W() (reads mockIsProUser pref first) — our Unlock
+  Pro patch + pref write cover it; the "missing undo" was just the stale 2.134.6
+  bundle not matching 2.135.1. No new patch needed. VERIFY on device.
+- Extras page REWRITTEN (PdbExtrasActivity 980→~200 lines): single page, six everyday
+  switches only; always-on list documented on-page; dev-screen row removed from
+  settings injection (FeatureMenuPatch DEV_ID dropped) and from SettingsEntryHook.
+- Bubble menu: "Pause Morphe" → "Chat directly" (PdbBubble.chatDirectly):
+  PdbDatabase.channelForUser() resolves user→channel via the app's IM room DB
+  (channel_members ⋈ channels; schema captured from e30/g30 CREATE TABLE strings),
+  opens pdb://chat/{type}_{id}; no channel yet → pdb://u/{id} profile fallback.
+  (Channel creation needs POST /api/v2/chats/create — deliberately not faked.)
+- Profile-ID toggle now shows PdbTools.restartDialog() ("takes effect after
+  restarting the app" + Restart now/Later) instead of a toast — bubble + Extras.
+  restartApp() = launcher intent CLEAR_TASK + killProcess.
+- decorateName(name, id, profile): badges via reflection on the profile object —
+  ✓ verified (manual/auto/faceVerified), ★ pro (proStatus.isPro), ◆ isMod;
+  wrapper now passes the implementor (IdsEverywherePatch 3-reg → same frame, extra arg).
+  Reflection degrades silently to id-only on obfuscation drift.
+- NOTE: 2.135.1 APKPure base.apk is arm64-only; x86_64 emulators crash in
+  MMKV dlopen (EM_AARCH64 vs EM_X86_64) — device testing only.
+MyDialog (0.5.4, verified live on the emulator):
+- NEW RemoveAiFabPatch (raw resource patch, Hermes same-length byte edits + SHA-1
+  trailer fix): fabItems→fabItem0 kills the server-driven AI FAB (pure JS, zero
+  native consumers); fabImage→fabImag0; footer "Device ID"→"ID ⚡5.4" (bump the
+  label text each release). App-version row untouched (values feed API bodies).
+- Verified on emulator: 0 fab nodes in dump; menu footer shows patch id next to
+  the device id (value redacted).
+Release: v0.5.4 published + GitHub asset verified (dexed, contains both new patches).
