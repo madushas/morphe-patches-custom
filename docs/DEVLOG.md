@@ -753,3 +753,31 @@ Release: v0.5.4 published + GitHub asset verified (dexed, contains both new patc
 - Device-debug notes for future: uiautomator dump fails on this app ("could not
   get idle state" — RN/Compose animation loop); use screencap + read instead.
   Non-exported extension activities can't be am-start'ed from shell (SecurityException).
+
+## 2026-10-28 — v0.5.6: dark-mode injected screens, soul-only history, profile Chat menu
+- User device feedback round 2: (1) history screen light in dark mode, (2) thought-
+  bubble users polluting history, (3) profile has no chat CTA, (4) more patch ideas.
+- Dark mode: the app's appearance pref is MMKV "dark_mode" (-1 system/1 light/2
+  dark, ij6 appearance picker → AppCompatDelegate, which plain activities ignore).
+  PdbUi.isNight() reads the pref via new PdbMmkv.getNumberAnyStore (int-or-long
+  search across stores), falls back to system uiMode; palette helpers
+  pageBg/cardBg/mainText/subText + themedCard; SoulHistoryActivity + PdbExtras
+  rebuilt on them. PdbUi.color(null-name) hardened (NPE guard).
+- Soul-only history: decorateName now records "seen" ONLY for the soul-card user
+  class, learned from the like hook (PdbUi.soulClass persisted in MMKV
+  "morphe_soul_class"); likes always recorded. Before the first like, no seen
+  rows (bootstraps on first swipe-like).
+- Profile Chat entry (ProfileChatEntryPatch): stock scf (profile detail) has NO
+  chat CTA — chats exist only via server-created channels (matches/bubbles/
+  wonder). Added honestly: "Chat" item in the profile ⋯ overflow menu
+  (scf.onClick, cra(id 0x4d0f0001, icon ic_menu_group_chat, flags 0x1fe0)) +
+  branch in m9f.onClick case-3 → PdbTools.openChat(ctx, faf.getId()) — channel
+  exists → real chat; else profile fallback (no fake channel creation).
+  openChat(Activity→Context). Verified in smali: both injections clean (the
+  patcher folded our label into the existing :cond_c chain).
+- Inline-smali lambdas note: morphe's indexOfFirstInstruction filter is a
+  RECEIVER lambda (use `this`, not an explicit param) — cost 2 compile rounds.
+- pdbbuild re-stripped the dex again (generatePatchesList after buildAndroid) —
+  caught by pdbrelease --check before publish this time; buildAndroid re-run last.
+- Released v0.5.6 (32 patches): GitHub asset verified (dex + extension contains
+  morphe_soul_class/dark_mode). Commit bc44929.
