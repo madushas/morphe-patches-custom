@@ -154,6 +154,36 @@ gen_notes
 head -3 "$NOTES" | sed 's/^/  /'
 echo "  ... ($(( $(wc -l < "$NOTES") )) lines -> patches/build/libs/notes-$VERSION.md)"
 
+echo "==> Updating CHANGELOG.md (the Manager fetches it for per-app update hints)"
+python3 - "$VERSION" "$NOTES" <<'PY'
+import re, sys
+version, notes_path = sys.argv[1], sys.argv[2]
+section = open(notes_path, encoding="utf-8").read().strip()
+existing = ""
+try:
+    existing = open("CHANGELOG.md", encoding="utf-8").read()
+except FileNotFoundError:
+    pass
+# Replace the section for this version if present, else prepend it.
+pattern = re.compile(
+    r"(?ms)^## \[" + re.escape(version) + r"].*?(?=^## \[|\Z)")
+if pattern.search(existing):
+    existing = pattern.sub(section + "\n\n", existing)
+else:
+    header = "# Changelog\n\nAll notable changes to the Pdb & MyDialog Morphe patch bundle.\n" \
+        "The Manager reads this file to show per-app update hints and the in-app changelog.\n\n"
+    if existing.startswith("# Changelog"):
+        existing = re.sub(r"(?s)^# Changelog.*?(?=^## \[)", header, existing)
+    else:
+        existing = header + existing
+    existing = existing.replace(header, header, 1)
+    # insert the new section right after the header block
+    idx = existing.find("## [")
+    existing = (existing[:idx] + section + "\n\n" + existing[idx:]) if idx >= 0 else existing + "\n\n" + section
+open("CHANGELOG.md", "w", encoding="utf-8").write(existing.rstrip() + "\n")
+print("  CHANGELOG.md updated for", version)
+PY
+
 echo "==> Syncing patches-bundle.json"
 python3 - "$VERSION" "$URL" "$NOTES" <<'PY'
 import collections, json, sys, datetime

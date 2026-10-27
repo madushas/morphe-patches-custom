@@ -781,3 +781,32 @@ Release: v0.5.4 published + GitHub asset verified (dexed, contains both new patc
   caught by pdbrelease --check before publish this time; buildAndroid re-run last.
 - Released v0.5.6 (32 patches): GitHub asset verified (dex + extension contains
   morphe_soul_class/dark_mode). Commit bc44929.
+
+## 2026-10-28 (later) — standard release notes (Manager changelog), pdbrelease upgrade
+- User: our releases "look dumb" vs hushgram/morphe-patches in the Manager. Verified:
+  the official bundles put a SEMANTIC-RELEASE-STYLE MARKDOWN CHANGELOG into
+  patches-bundle.json "description" ("## [1.48.0](compare-url) (date)" +
+  "### 🐛 Bug Fixes" / "### ✨ New Features" with commit links) — the Manager renders
+  that description as the source's release notes. Ours was a one-line description.
+- tools/pdbrelease now: gen_notes() builds the same shape from git history since the
+  previous v* tag (feat→✨ / fix→🐛 / perf→⚡ / other→🧹, release:/chore commits
+  skipped, sha links), writes notes-<ver>.md, --prepare injects it into the bundle
+  description + created_at, --publish uses --notes-file for the GitHub release,
+  --check warns when the description lacks the version header.
+- v0.5.6 re-released with hand-written notes (the feature work had been squashed into
+  the release commit — future discipline: feat:/fix: commits BEFORE --prepare, so the
+  generated changelog is real). GitHub asset dex-verified; raw bundle.json now
+  carries the version changelog. Commit 7215831.
+
+## 2026-10-28 (final) — morphe-patching skill created (system-wide)
+- ~/.agents/skills/morphe-patching/ : SKILL.md (workflow + trap table) +
+  references/{recon,patching-cookbook,build-release,device-testing,traffic-inspection}.md
+- Captures the full pipeline from this repo's history: recon → fingerprints/injection
+  (register rules, escaping, rename+wrapper, hermes, extension lib) → build ordering →
+  device testing (PII redaction, uiautomator idle failures) → release (Manager
+  resolution chain, dex verification, semantic-release changelog) → MITM recipe →
+  honesty rules (client vs server gates).
+- Registered and live in the agent's available skills (verified by the harness).
+- Release-notes standardization (same day): pdbrelease generates semantic-release
+  changelogs into patches-bundle.json description + --notes-file for GitHub;
+  v0.5.6 re-released with proper notes (asset dex-verified).
