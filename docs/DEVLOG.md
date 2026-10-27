@@ -736,3 +736,20 @@ Release: v0.5.4 published + GitHub asset verified (dexed, contains both new patc
   not a zip; verify with `strings`, not unzip).
 - v0.5.5 deleted + recreated with the correct 1,108,448-byte asset; verified:
   classes.dex present, extension.mpe contains SoulHistoryActivity (6 hits).
+
+## 2026-10-27 — 0.5.5 fix #3 (device-verified): deep links need a HOST
+- User: Chat buttons still dead after fix #2. Live device debug (screencap + am
+  start with fake ids): pdb://chat/… and pdb://u/… → router's BLANK fallback
+  screen. Root cause: u8c.R routes on PATH SEGMENTS (segments[0]=="chat"/"u"),
+  so a host-less URI puts the route in the URI AUTHORITY and never matches.
+  The app's own links carry a host (pdb://pdb.app/chat_notify/...).
+- Correct forms (verified live: pdb://pdb.app/u/{id} opens a real profile):
+  chat → pdb://pdb.app/chat/{channelType}:{channelId}
+  profile → pdb://pdb.app/u/{id}
+- Fixed PdbTools.openChat, PdbUi.showSoulHistory rows, SoulHistoryActivity rows.
+  (Direct channel-create via API still deliberately avoided; fallback = profile.)
+- Same-version redeploy v0.5.5 (deleted+recreated); GitHub asset verified:
+  classes.dex present, extension.mpe contains the host-form links. Commit 0330d7a.
+- Device-debug notes for future: uiautomator dump fails on this app ("could not
+  get idle state" — RN/Compose animation loop); use screencap + read instead.
+  Non-exported extension activities can't be am-start'ed from shell (SecurityException).
