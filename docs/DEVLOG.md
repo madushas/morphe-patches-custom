@@ -810,3 +810,82 @@ Release: v0.5.4 published + GitHub asset verified (dexed, contains both new patc
 - Release-notes standardization (same day): pdbrelease generates semantic-release
   changelogs into patches-bundle.json description + --notes-file for GitHub;
   v0.5.6 re-released with proper notes (asset dex-verified).
+
+## 2026-10-28 (late) — missing CHANGELOG.md suppressed the Manager update badge
+- User: after 0.5.5→0.5.6 the Pdb app entry in Manager shows no "update available".
+- Manager 2.1.0 source traced (morphe-manager): the badge compares the bundle version
+  stored AT PATCH TIME (AppliedPatch.bundleVersion / SelectionPayload) vs the source's
+  current version, then REFINES via the repo's CHANGELOG.md:
+  RemotePatchBundle.fetchChangelogEntries() fetches
+  raw.../<owner>/<repo>/<branch>/CHANGELOG.md (derived from the bundle endpoint);
+  parseChangelog() maps a 404 to EMPTY LIST (not an error!); empty entries pass the
+  null-check and hasChangesFor(empty)=false → badge suppressed. The intended
+  "no changelog → show badge" fallback never fires on 404.
+- Changelog subject matching (ChangelogParser.SubjectMatcher): scoped bullets
+  `**Scope:**` match the app's displayName ("Pdb") or its sub-scope before " - "
+  ("Pdb - Soul history"), or distinctive package segments; unscoped bullets match
+  whole-word app names or `patch name` in backticks. otherAppNames guard (Pdb vs
+  MyDialog in one bundle).
+- Fix: CHANGELOG.md added at repo root (full 0.5.1→0.5.6 history, official format);
+  pdbrelease --prepare now prepends/replaces the version section automatically.
+  Verified with a Python port of the parser: Pdb badge=True for 0.5.5→0.5.6,
+  MyDialog=False (correct — 0.5.6 has no MyDialog changes). Commit 16ffa6c; fetched
+  from the branch, so no re-release needed. User must refresh the source in Manager.
+- Skill updated: build-release.md now documents the CHANGELOG.md requirement.
+
+## 2026-10-29/30 — bisection saga: chat→profile blank ANR (what went wrong and what we learned)
+Bug: on the ZTE and the x86 emulator (both, 2.135.1 full patch set), chat-header →
+UserProfileActivity renders BLANK, then "no focused window" ANR. Also reproduced via
+a plain `pdb://pdb.app/u/{id}` VIEW intent — so openChat's link was not the cause.
+
+What was tried and what it taught:
+
+1. **Bisect builds were silently invalid (biggest waste).** Manual morphe-desktop CLI
+   runs without `MORPHE_DATA_DIR=$HOME/.morphe-data` picked up the JAR-adjacent
+   keystore (d31ad05f… cert) instead of the project keystore (eb443131…, CN=Morphe).
+   Every `adb install -r` then failed with INSTALL_FAILED_UPDATE_INCOMPATIBLE while
+   the script's `| tail -1` hid the error — so the "minimal" builds I tested were
+   actually the OLD install. LESSON: always export MORPHE_DATA_DIR before manual CLI
+   runs; after install, verify `dumpsys package | lastUpdateTime` CHANGED, or verify
+   the cert SHA-1 matches. (Now pinned in memory #25.)
+
+2. **Emulator boot prerequisites for Pdb 2.135.1.** A truly-minimal patch set cannot
+   boot on the x86 emulator:
+   - without "Disable trackers": Crashlytics dlopens arm64 `libcrashlytics.so`
+     through the native bridge → not found → process dies at launch.
+   - without "Bypass PairIP license check": the app itself calls `System.exit(0)`
+     after LicenseActivity (logcat: "System.exit called, status: 0").
+   Minimal WORKING bisect base = standalone-install + relocate-MMKV + trackers +
+   PairIP (4 patches). With exactly that, chat→profile RENDERS FINE on the emulator.
+   → The blank-profile bug lives in one of the other 10 patches. Prime suspects:
+   Show profile IDs on names (wraps name getters), Floating power button,
+   Pdb Extras, Soul history. NOT yet bisected further — test env degraded first.
+
+3. **Cross-app screenshot contamination (fake evidence).** vision-check kept
+   reporting "blank black screen" — some of those screenshots were of OTHER apps
+   (Strava was foreground at one point; its login page read as "blank"). My taps at
+   Pdb tab coordinates landed in whatever app was foreground. LESSON: before any
+   screencap-based verdict, check `dumpsys activity activities | topResumedActivity`
+   and only trust screenshots taken while pdb.app is top. uiautomator dumps and
+   screencaps can also disagree with each other (stale cache) — cross-check.
+
+4. **Emulator data state degraded mid-debug.** After repeated reinstalls, list
+   screens (Soul feed, Chats) render EMPTY with the app otherwise functional —
+   looks like "no internet" but sockets to styx/personality-database are ESTABLISHED
+   and the host can reach the API (403s are for host-side probes without app
+   headers, not proof of a problem). Hypotheses: test-account session expired or
+   server stopped serving this heavily-reinstalled test account; OR a bisect build
+   (missing feature patches) hit a server-side config path we haven't mapped.
+   NOT attributed to a patch. Next clean step: fresh login on the emulator with the
+   full patch set, then re-test chat→profile; only then continue patch-level
+   bisection on a stable, logged-in environment.
+
+5. **Fixes that ARE solid regardless of the bisect outcome** (already built):
+   - openChat is now async (worker thread, 800 ms timeout) — the original blocking
+     DB read on the UI thread could ANR by itself; and it never deep-links to a
+     user the app hasn't IM-cached (userExists() guard) because that provably
+     opens the blank ANR screen. No-channel users get a toast instead.
+   - "Relocate runtime MMKV copy" (default=false, expert) immunizes against the
+     stale-arm64-.so boot crash on emulators.
+   Both ship in the next release; the release will be cut from the STABLE set once
+   the profile-blank culprit patch is found or the suspects are fixed.

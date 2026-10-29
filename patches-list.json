@@ -727,6 +727,37 @@
       ]
     },
     {
+      "name": "Relocate runtime MMKV copy",
+      "description": "Copies the bundled MMKV library to a fresh file name so a stale copy from another ABI can never be loaded (fixes emulator crashes; no effect on a clean device).",
+      "default": false,
+      "dependencies": [],
+      "compatiblePackages": [
+        {
+          "packageName": "pdb.app",
+          "name": "Pdb",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#6C5CE7",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "2.135.1",
+              "versionCodes": {
+                "ARM64_V8A": 2709,
+                "ARMEABI_V7A": 2709,
+                "X86_64": 2709,
+                "X86": 2709
+              },
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
       "name": "Remove AI assistant FAB (+ footer patch id)",
       "description": "Removes the server-driven AI overlay FAB from every screen and surfaces the Morphe patch version on the side-menu footer (\"ID ⚡<version>\" next to the device id).",
       "default": true,
