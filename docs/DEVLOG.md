@@ -889,3 +889,11 @@ What was tried and what it taught:
      stale-arm64-.so boot crash on emulators.
    Both ship in the next release; the release will be cut from the STABLE set once
    the profile-blank culprit patch is found or the suspects are fixed.
+
+### Correction (2026-10-30) — the "cross-app screenshot contamination"
+Not an app-switch bug of ours: the user runs MULTIPLE agents on the same emulator
+(another one was patching Strava at the same time). The lesson stands, sharper:
+emulator-5554 is a SHARED device — verify topResumedActivity + install state before
+trusting any UI evidence, and expect unexplained state changes (they may be the
+other agent). The "empty data" state may also be co-agent interference — retest on
+a quiet emulator before blaming patches or the account.
