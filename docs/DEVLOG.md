@@ -897,3 +897,87 @@ emulator-5554 is a SHARED device — verify topResumedActivity + install state b
 trusting any UI evidence, and expect unexplained state changes (they may be the
 other agent). The "empty data" state may also be co-agent interference — retest on
 a quiet emulator before blaming patches or the account.
+
+## 2026-10-31 — blank-profile repro matrix + new AVD facts (non-linear notes)
+- [FACT] After server restart, emulator-5554 = DIFFERENT AVD (Pixel_9_Pro, API 36,
+  ndk_translation present; abilist x86_64,arm64-v8a; app procs run NATIVE x86_64).
+  The pre-restart AVD (sdk_gphone64_x86_64) refused arm64 .so (EM_AARCH64 crash);
+  the NEW AVD runs the same installed build FINE — MMKV arm64 asset loads.
+  => All "cannot boot" conclusions were AVD-specific. Re-verify on this AVD.
+- [FACT] OLD full build (lastUpdateTime 10-30 04:13, pre-async-openChat, 14 patches)
+  boots, session kept, chat list renders. chat→profile → UserProfileActivity
+  resumes + main thread S (idle) + NO ANR + screen BLACK forever (VRI never
+  visible for UserProfile; Home/Chat VRIs log normally). Same symptom as before,
+  now on a quiet, logged-in emulator => REAL bug, not environment.
+- [KEY] Window never becomes focusable/drawable for UserProfileActivity only;
+  process healthy (FirebaseRemoteConfig heartbeats every 60s). Not PairIP
+  (would kill), not MMKV (boot fine), not ANR (main idle). => something in the
+  profile UI's first frame path — our injected hooks that run during profile
+  content layout: IdsEverywhere decorateName (bind-time, every name TextView!),
+  ProfileChatEntry menu build, bubble (all screens OK though), SoulLike (feed only).
+  PRIME SUSPECT: decorateName loop/reflection blowup per-name → but would busy-loop
+  main, not idle... OR first-frame never scheduled (surface attach fails) =
+  Compose/View flag issue? NEXT: bisect = disable IDs patch only (full build minus
+  IDs) → test. Then minus ChatEntry. Two builds decide.
+- [NOISE] WhatsApp on this emulator crash-loops on its own SendReadReceiptJob NPE
+  (12 crash entries) — stock app bug/co-agent, unrelated to pdb.app. Ignore.
+- [ENV] Emulator reboots lose `su` (Pixel_9_Pro AVD has no root; RootEmu AVD did).
+  files/ not readable without root; rely on app-side logs instead.
+- [HYPOTHESIS-SHOT] ChatActivity → profile transition: profile opens INSIDE same
+  task with a shared-element/animation; if our ID decoration changes the title
+  TextView mid-transition, Compose may abort first frame. Test with IDs off.
+
+## 2026-11-01 — bisect round: IDs-off build → SAME blank+ANR
+- x86 input v2: rebuilt libmmkv x86_64 FROM SOURCE (MMKV v1.3.14 tag, cmake+NDK r27,
+  short-JNI names match the stock arm64 lib 1:1; the 2.1.0 AAR lib was rejected:
+  "Bad JNI version -4" — 2.x natives ≠ 1.3.14 Java). pdb_x86_rebuilt2a.apk.
+- Build A (12 patches, NO "Show profile IDs on names", openChat-async ext included):
+  boots, session kept, chat→profile → **STILL blank + ANR (no focused window)**.
+  => IDs patch ELIMINATED as the culprit.
+- Remaining suspects: Floating power button / Chat button on profiles / Soul
+  history+like / Extras+resources / Mock Pro / visitor limit / Remove ads /
+  Fix icon / PairIP / trackers. Next: -d "Chat button on profiles" (build B);
+  if still blank → -d "Floating power button" (build C).
+- Also noted: ANR dump on THIS avd lacks dropbox access (no root); use am_anr
+  events + topResumedActivity + VRI logs only. WhatsApp on this AVD crash-loops
+  (stock bug) and occasionally steals foreground — ignore.
+
+## 2026-11-01 — CULPRIT FOUND: "Chat button on profiles"
+- Build B (11 patches: IDs AND Chat-entry both disabled): chat→profile RENDERS
+  (vision PASS, photo/tabs/content). Build A (IDs off, chat-entry ON): blank+ANR.
+  => **ProfileChatEntryPatch's m9f.onClick / scf.onClick injection is the bug.**
+- Root cause candidates in that patch: (a) injects into scf.onClick BEFORE the
+  existing switch, assuming v13 (ArrayList) + b0() registers live at that index;
+  (b) m9f dispatch: reads pswitch via z0 sget + assumes v15 = faf profile object.
+  On 2.135.1 those register assumptions are stale → VerifyError/dead window at
+  profile-menu init (scf constructed during profile content inflation).
+- FIX: rebuild chat-entry against 2.135.1 bytecode (fresh register analysis), or
+  drop it from the stable release (Soul-history rows already offer Chat).
+- [NOTE] WhatsApp on this AVD steals foreground constantly (crash-loop relaunch);
+  force-stop it before UI tests.
+
+## 2026-11-01 — Root cause nailed (ProfileChatEntryPatch)
+- The patch anchors on `new-instance Ldra;` in scf.onClick. In 2.135.1 that
+  instruction exists but is a DIFFERENT menu (a divider/drag item, ctor
+  (Context) only, built at :1934 AFTER the real cra menu list) — NOT the
+  2.134.6 menu-item builder. The injected 12-instruction cra-builder block was
+  inserted at that wrong site with garbage register state (v13 not an ArrayList
+  there, v14/v22 not live) → VerifyError when scf.onClick first class-loads →
+  profile window never draws → blank + "no focused window" ANR. In 2.134.6 the
+  same anchor happened to be correct; the string class names never survive R8.
+- LESSON (add to skill): never anchor instruction INJECTION on a bare class-type
+  literal alone — pair it with the constructor signature (or a string literal
+  inside the ctor args) and assert the surrounding register context (what holds
+  the ArrayList, what holds `this`). Class letters reshuffle every build.
+- Fix for stable release: drop "Chat button on profiles" from the default set
+  (Soul-history rows already carry Chat); rebuild it later against cra-ctor
+  (II 7-arg) + v13/v14 context.
+
+## 2026-11-01 — FIXED & VERIFIED on emulator (v0.5.7 stable set)
+- Full stable build (12 patches, chat-entry demoted to expert/default-off):
+  chat→profile RENDERS (vision PASS). The multi-day blank+ANR is CLOSED.
+- v0.5.7 bundle: 41 patches listed (Strava agent's 4 included in the catalog
+  via stash-restore later — release must NOT ship their WIP: keep bundle at
+  the committed state before strava stash; verify patches-list on release).
+- Remaining: rebuild chat-entry properly (anchor cra-ctor + context asserts),
+  then re-enable. Release 0.5.7 after user's OK.

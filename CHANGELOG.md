@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.5.6 - Strava joins the bundle
+
+**New app: Strava (com.strava) 480.15 / 485.12 / 486.9 / 486.11**
+
+- Unlock Premium: forces the SubscriptionDetail constructor (premium, expiry
+  2099, PAID, full product-access bitfield) so every client premium gate opens.
+- Remove upsells: renderer gates for the Data Peek carousel, Maps "Explore
+  anywhere" card, "Time to flex" replay card, "Your predictions are ready",
+  "See how far you've come" and subscriber preview banners - each with a
+  runtime toggle in Extra Settings (module dispatcher + 4 converters +
+  performance-predictions composable, per-type defaults baked in smali).
+- Remove telemetry: Sentry, Embrace, Facebook AppEvents, GA4
+  (logEventInternal), first-party Room analytics DAO, Mapbox telemetry;
+  GAID hard-emptied at AdvertisingIdClient; push (FCM) untouched.
+- Extra Settings screen: native-looking screen in Settings with upsell
+  hide-switches (live, no restart), accent display, recording touch-lock and
+  patch info.
+- AMOLED dark theme: dark surfaces remapped to a true-black ladder
+  (48 entries).
+- Custom app name: optional launcher-label rewrite (stravaAppName option).
+- Recording touch lock: full-screen shield over the recording screen with a
+  "tap to unlock" pill - stray taps no longer flip map/stat views or open
+  sheets (on by default, toggle in Extra Settings).
+- Signature spoof + original certificate re-enabled for Strava.
+
 All notable changes to the Pdb & MyDialog Morphe patch bundle. The Manager reads
 this file to show per-app update hints and the in-app changelog.
 

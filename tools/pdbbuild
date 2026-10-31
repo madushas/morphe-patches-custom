@@ -49,6 +49,13 @@ if [[ -n "${PDB_ENABLE_PATCHES:-}" ]]; then
     echo "  (+ enabling non-default patch: $PNAME)"
   done < <(tr ',' '\n' <<<"$PDB_ENABLE_PATCHES" | sed 's/^ *//;s/ *$//' | grep -v '^$')
 fi
+if [[ -n "${PDB_DISABLE_PATCHES:-}" ]]; then
+  # e.g. PDB_DISABLE_PATCHES="Show profile IDs on names" (excludes it from --exclusive build)
+  while IFS= read -r PNAME; do
+    ENABLE_ARGS+=(-d "$PNAME")
+    echo "  (- disabling patch: $PNAME)"
+  done < <(tr ',' '\n' <<<"$PDB_DISABLE_PATCHES" | sed 's/^ *//;s/ *$//' | grep -v '^$')
+fi
 java -jar "$HOME/tools/opt/morphe-desktop.jar" patch \
   --patches="$MPP" \
   --bytecode-mode FULL \
