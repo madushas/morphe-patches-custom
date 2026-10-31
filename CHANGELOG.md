@@ -28,6 +28,16 @@
 All notable changes to the Pdb & MyDialog Morphe patch bundle. The Manager reads
 this file to show per-app update hints and the in-app changelog.
 
+## [0.5.7](https://github.com/madushas/morphe-patches-custom/compare/v0.5.6...v0.5.7) (2026-11-01)
+
+### 🧹 Changes
+* fix(pdb): demote Chat-button-on-profiles to expert (bad anchor on 2.135.1 — Ldra; is a different menu; blank+ANR) — v0.5.7 stable set verified: chat→profile renders ([4d3c4b2](https://github.com/madushas/morphe-patches-custom/commit/4d3c4b2))
+* chore(repo): keep local app packages untracked (*.apkm/*.xapk/*.apks/*.aab, .kotlin/) ([aa7ab16](https://github.com/madushas/morphe-patches-custom/commit/aa7ab16))
+* chore(build): pin patcher 2.0.1 + smali ac700e1942, record Manager 2.2.0 floor ([4cd66e1](https://github.com/madushas/morphe-patches-custom/commit/4cd66e1))
+* docs: DEVLOG — cross-app screenshot contamination was co-agent interference, not an app bug ([9aa60dd](https://github.com/madushas/morphe-patches-custom/commit/9aa60dd))
+* fix(pdb): async openChat + cached-user guard (blank-profile ANR), MmkvRelocate patch, DEVLOG bisection lessons ([a5a5e60](https://github.com/madushas/morphe-patches-custom/commit/a5a5e60))
+* fix(manager): add CHANGELOG.md — the Manager 404s it into an empty list, which suppresses the per-app update badge; pdbrelease now maintains it ([16ffa6c](https://github.com/madushas/morphe-patches-custom/commit/16ffa6c))
+
 ## [0.5.6](https://github.com/madushas/morphe-patches-custom/compare/v0.5.5...v0.5.6) (2026-10-28)
 
 ### 🐛 Bug Fixes
