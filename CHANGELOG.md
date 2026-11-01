@@ -31,6 +31,11 @@
 All notable changes to the Pdb & MyDialog Morphe patch bundle. The Manager reads
 this file to show per-app update hints and the in-app changelog.
 
+## [0.5.8](https://github.com/madushas/morphe-patches-custom/compare/v0.5.7...v0.5.8) (2026-11-02)
+
+### 🧹 Changes
+* fix(pdb): soul history newest-first + honest Chat/Profile pill (channel pre-check off-thread); PdbTools.DB_EXECUTOR public ([7c54d92](https://github.com/madushas/morphe-patches-custom/commit/7c54d92))
+
 ## [0.5.7](https://github.com/madushas/morphe-patches-custom/compare/v0.5.6...v0.5.7) (2026-11-01)
 
 ### 🧹 Changes
