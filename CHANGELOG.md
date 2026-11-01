@@ -24,6 +24,9 @@
   "tap to unlock" pill - stray taps no longer flip map/stat views or open
   sheets (on by default, toggle in Extra Settings).
 - Signature spoof + original certificate re-enabled for Strava.
+- Recording touch lock (persistent pill toggle, DecorView-level shield).
+- SuperUser debug console export is now opt-in (suConsoleExport option,
+  default off) - a security surface no stable build should expose.
 
 All notable changes to the Pdb & MyDialog Morphe patch bundle. The Manager reads
 this file to show per-app update hints and the in-app changelog.
