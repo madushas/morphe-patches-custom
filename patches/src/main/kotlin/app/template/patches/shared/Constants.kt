@@ -94,7 +94,8 @@ object Constants {
         // Universal APK (arm64-v8a + armeabi-v7a + x86 + x86_64).
         signatures = setOf("25512576dacc619bd925d1ea05a3e140311d31b0b853183abe1d9da8fd3f240f"),
         targets = listOf(
-            AppTarget(version = "4.80.0", versionCode = 1717895889, minSdk = 29)
+            AppTarget(version = "4.80.0", versionCode = 1717895889, minSdk = 29),
+            AppTarget(version = "4.80.1", versionCode = 1717921629, minSdk = 29)
         )
     )
 

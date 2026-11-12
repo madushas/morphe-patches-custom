@@ -917,6 +917,18 @@
               "isExperimental": false,
               "minSdk": 29,
               "description": null
+            },
+            {
+              "version": "4.80.1",
+              "versionCodes": {
+                "ARM64_V8A": 1717921629,
+                "ARMEABI_V7A": 1717921629,
+                "X86_64": 1717921629,
+                "X86": 1717921629
+              },
+              "isExperimental": false,
+              "minSdk": 29,
+              "description": null
             }
           ]
         }
@@ -1187,6 +1199,18 @@
               "isExperimental": false,
               "minSdk": 29,
               "description": null
+            },
+            {
+              "version": "4.80.1",
+              "versionCodes": {
+                "ARM64_V8A": 1717921629,
+                "ARMEABI_V7A": 1717921629,
+                "X86_64": 1717921629,
+                "X86": 1717921629
+              },
+              "isExperimental": false,
+              "minSdk": 29,
+              "description": null
             }
           ]
         }
@@ -1357,6 +1381,18 @@
                 "ARMEABI_V7A": 1717895889,
                 "X86_64": 1717895889,
                 "X86": 1717895889
+              },
+              "isExperimental": false,
+              "minSdk": 29,
+              "description": null
+            },
+            {
+              "version": "4.80.1",
+              "versionCodes": {
+                "ARM64_V8A": 1717921629,
+                "ARMEABI_V7A": 1717921629,
+                "X86_64": 1717921629,
+                "X86": 1717921629
               },
               "isExperimental": false,
               "minSdk": 29,
@@ -2286,6 +2322,18 @@
                 "ARMEABI_V7A": 1717895889,
                 "X86_64": 1717895889,
                 "X86": 1717895889
+              },
+              "isExperimental": false,
+              "minSdk": 29,
+              "description": null
+            },
+            {
+              "version": "4.80.1",
+              "versionCodes": {
+                "ARM64_V8A": 1717921629,
+                "ARMEABI_V7A": 1717921629,
+                "X86_64": 1717921629,
+                "X86": 1717921629
               },
               "isExperimental": false,
               "minSdk": 29,
